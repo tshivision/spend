@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spend — Personal Finance Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --bg:#F5F2EB;--bg2:#EDEAE1;--bg3:#E4E0D5;--card:#FDFCF8;
+  --ink:#1C1A14;--ink2:#5C5849;--ink3:#9C9888;
+  --accent:#C4421A;--green:#2D6A4F;--blue:#1B4F8A;--amber:#9B6B00;
+  --border:rgba(28,26,20,0.10);--border2:rgba(28,26,20,0.06);
+  --radius:12px;
+  --font-d:'Fraunces',Georgia,serif;
+  --font-m:'DM Mono',monospace;
+  --shadow:0 4px 24px rgba(28,26,20,0.08);
+  --shadow-lg:0 12px 48px rgba(28,26,20,0.14);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{font-family:var(--font-m);background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* ── UPLOAD ── */
+#uploadScreen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+.upload-logo{font-family:var(--font-d);font-size:3rem;font-weight:600;letter-spacing:-0.02em;margin-bottom:.25rem}
+.upload-logo span{color:var(--accent);font-style:italic}
+.upload-tagline{font-size:.7rem;color:var(--ink3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:3rem}
+.drop-zone{width:100%;max-width:520px;border:1.5px dashed var(--border);border-radius:var(--radius);background:var(--card);padding:3rem 2rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:#FEF9F5}
+.drop-icon{width:48px;height:48px;margin:0 auto 1rem;background:var(--bg2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px}
+.drop-title{font-size:1rem;font-weight:500;margin-bottom:.5rem}
+.drop-sub{font-size:.75rem;color:var(--ink3)}
+.drop-sub strong{color:var(--accent);cursor:pointer}
+#fileInput{display:none}
+.file-list{margin-top:1rem;display:flex;flex-direction:column;gap:6px}
+.file-pill{display:flex;align-items:center;gap:8px;background:var(--bg2);border-radius:999px;padding:4px 12px;font-size:11px;color:var(--ink2)}
+.file-pill .dot{width:6px;height:6px;background:var(--green);border-radius:50%}
+.analyze-btn{margin-top:1.5rem;width:100%;max-width:520px;padding:.875rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-family:var(--font-m);font-size:.875rem;font-weight:500;cursor:pointer;transition:opacity .15s;display:none}
+.analyze-btn:hover{opacity:.9}
+.upload-note{margin-top:1.25rem;font-size:.7rem;color:var(--ink3);text-align:center;max-width:400px;line-height:1.6}
+.feats{margin-top:2.5rem;display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
+.feat{font-size:11px;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.feat-i{width:22px;height:22px;background:var(--bg2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px}
+
+/* ── DASHBOARD SHELL ── */
+#dashboard{display:none}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.topbar-logo{font-family:var(--font-d);font-size:1.375rem;font-weight:600;letter-spacing:-0.02em}
+.topbar-logo span{color:var(--accent);font-style:italic}
+.btn-sm{font-family:var(--font-m);font-size:11px;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--ink2);cursor:pointer;transition:background .15s}
+.btn-sm:hover{background:var(--bg2)}
+.main-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--card);padding:0 2rem;position:sticky;top:56px;z-index:199;overflow-x:auto}
+.main-tab{font-family:var(--font-m);font-size:12px;padding:12px 20px;border:none;background:transparent;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;white-space:nowrap}
+.main-tab:hover{color:var(--ink)}
+.main-tab.active{color:var(--ink);border-bottom-color:var(--accent)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.dash-body{max-width:1120px;margin:0 auto;padding:2rem 1.5rem 4rem}
+
+/* filters */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
+.filter-label{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-right:4px}
+.filter-pill{font-family:var(--font-m);font-size:11px;padding:5px 14px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--ink2);cursor:pointer;transition:all .15s}
+.filter-pill:hover{border-color:var(--accent);color:var(--accent)}
+.filter-pill.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* KPI row */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem}
+.kpi-label{font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.kpi-value{font-family:var(--font-d);font-size:1.75rem;font-weight:600;line-height:1}
+.kpi-sub{font-size:10px;color:var(--ink3);margin-top:4px}
+.kpi-badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:999px;margin-top:5px}
+.up{background:#FDE8E0;color:var(--accent)}
+.dn{background:#E0F2E9;color:var(--green)}
+
+/* chart panels */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;overflow:hidden}
+.panel-title{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:1rem;display:flex;align-items:center;gap:6px}
+.click-hint{font-size:9px;background:var(--bg2);color:var(--ink3);padding:2px 7px;border-radius:999px;letter-spacing:.04em}
+.chart-wrap{position:relative;width:100%}
+canvas{cursor:pointer}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ink2)}
+.legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* ── DRILLDOWN MODAL ── */
+#drillModal{
+  display:none;position:fixed;inset:0;z-index:500;
+  align-items:center;justify-content:center;padding:1.5rem;
+  background:rgba(28,26,20,.55);backdrop-filter:blur(6px);
+  animation:fadein .18s ease;
+}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+#drillModal.open{display:flex}
+.drill-sheet{
+  background:var(--card);border-radius:16px;
+  width:100%;max-width:680px;max-height:88vh;
+  display:flex;flex-direction:column;
+  box-shadow:var(--shadow-lg);
+  animation:slideup .22s cubic-bezier(.22,.8,.22,1);
+  overflow:hidden;
+}
+@keyframes slideup{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.drill-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px 14px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.drill-title{font-family:var(--font-d);font-size:1.3rem;font-weight:600}
+.drill-subtitle{font-size:11px;color:var(--ink3);margin-top:2px}
+.drill-close{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--ink2);transition:background .15s;flex-shrink:0}
+.drill-close:hover{background:var(--bg2)}
+.drill-summary{
+  display:flex;gap:0;border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.drill-stat{flex:1;padding:12px 18px;border-right:1px solid var(--border2)}
+.drill-stat:last-child{border-right:none}
+.drill-stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:3px}
+.drill-stat-value{font-family:var(--font-d);font-size:1.1rem;font-weight:600}
+.drill-body{overflow-y:auto;padding:16px 22px;flex:1}
+.drill-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;border-bottom:1px solid var(--border2);
+}
+.drill-row:last-child{border-bottom:none}
+.drill-row:hover{background:var(--bg2);margin:0 -6px;padding:8px 6px;border-radius:6px}
+.dr-date{font-size:10px;color:var(--ink3);min-width:64px;flex-shrink:0}
+.dr-merch{font-size:12px;color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-cat{font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--ink2);flex-shrink:0;white-space:nowrap}
+.dr-loc{font-size:11px;flex-shrink:0}
+.dr-amt{font-size:12px;font-weight:500;color:var(--ink);min-width:52px;text-align:right;flex-shrink:0}
+.drill-section-head{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);padding:10px 0 6px;border-bottom:1px solid var(--border2);margin-bottom:4px}
+
+/* sub rows */
+.sub-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border2);font-size:11px}
+.sub-item:last-child{border-bottom:none}
+.sub-name{color:var(--ink)}
+.sub-meta{color:var(--ink3)}
+.sub-amt{font-weight:500}
+
+/* merchant bars */
+.merchant-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border2)}
+.merchant-row:last-child{border-bottom:none}
+.merch-rank{font-size:10px;color:var(--ink3);min-width:16px}
+.merch-name{font-size:11px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.merch-bar-bg{flex:1.5;height:4px;background:var(--bg2);border-radius:2px;overflow:hidden}
+.merch-bar-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.merch-amt{font-size:11px;font-weight:500;min-width:56px;text-align:right}
+
+/* insights */
+.insight{padding:10px 12px;border-radius:8px;margin-bottom:8px;border-left:3px solid transparent}
+.insight:last-child{margin-bottom:0}
+.insight-warn{background:#FEF4EC;border-color:#C4421A}
+.insight-ok{background:#EEF6F2;border-color:#2D6A4F}
+.insight-info{background:#EEF2F9;border-color:#1B4F8A}
+.insight-title{font-size:11px;font-weight:500;color:var(--ink);margin-bottom:2px}
+.insight-text{font-size:10px;color:var(--ink2);line-height:1.5}
+.rec{padding:12px 0;border-bottom:1px solid var(--border2);display:flex;gap:12px;align-items:flex-start}
+.rec:last-child{border-bottom:none}
+.rec-n{font-family:var(--font-d);font-size:1.25rem;font-weight:300;color:var(--ink3);line-height:1;min-width:20px}
+.rec-body{flex:1;font-size:11px;color:var(--ink2);line-height:1.6}
+.rec-body strong{color:var(--ink);font-weight:500}
+.rec-save{font-size:10px;padding:3px 8px;background:#EEF6F2;color:var(--green);border-radius:999px;white-space:nowrap;flex-shrink:0}
+
+/* location tab */
+.loc-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:28px}
+.loc-summary-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:transform .15s,box-shadow .15s;cursor:pointer}
+.loc-summary-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.loc-flag{font-size:26px;margin-bottom:6px;line-height:1}
+.loc-name{font-size:11px;color:var(--ink2);margin-bottom:4px}
+.loc-amount{font-family:var(--font-d);font-size:1.4rem;font-weight:600;line-height:1}
+.loc-detail{font-size:10px;color:var(--ink3);margin-top:3px}
+.loc-bar{height:3px;background:var(--bg2);border-radius:2px;margin-top:8px;overflow:hidden}
+.loc-bar-fill{height:100%;border-radius:2px}
+.loc-month-row{display:grid;grid-template-columns:110px 1fr;gap:0;min-height:80px}
+.loc-month-left{padding:16px 20px 16px 0;text-align:right;border-right:2px solid var(--border);position:relative}
+.loc-month-left::after{content:'';position:absolute;right:-5px;top:22px;width:8px;height:8px;background:var(--accent);border-radius:50%;border:2px solid var(--bg)}
+.loc-month-name{font-family:var(--font-d);font-size:1rem;font-weight:600}
+.loc-month-total{font-size:10px;color:var(--ink3);margin-top:3px}
+.loc-month-right{padding:14px 0 20px 24px;display:flex;flex-direction:column;gap:8px}
+.loc-cards-row{display:flex;flex-wrap:wrap;gap:8px}
+.loc-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:150px;flex:1;max-width:210px;cursor:pointer;transition:box-shadow .15s,transform .15s}
+.loc-card:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.loc-card-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.loc-card-flag{font-size:18px;line-height:1}
+.loc-card-name{font-size:12px;font-weight:500}
+.loc-card-amount{font-family:var(--font-d);font-size:1.15rem;font-weight:600;line-height:1;margin-bottom:3px}
+.loc-card-detail{font-size:10px;color:var(--ink3)}
+.loc-cat-pills{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.loc-cat-pill{font-size:9px;padding:2px 6px;border-radius:999px;background:var(--bg2);color:var(--ink2)}
+.loc-untagged{font-size:10px;color:var(--ink3);padding-top:6px;font-style:italic}
+
+/* loading */
+#loadingOverlay{display:none;position:fixed;inset:0;background:rgba(245,242,235,.85);backdrop-filter:blur(4px);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loader-ring{width:40px;height:40px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{font-size:12px;color:var(--ink3)}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--ink3);font-size:12px}
+
+@media(max-width:740px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+  .topbar,.dash-body{padding-left:1rem;padding-right:1rem}
+  .dash-body{padding-top:1.25rem;padding-bottom:3rem}
+  .main-tabs{padding:0 1rem}
+  .drill-sheet{max-width:100%;border-radius:16px 16px 0 0;max-height:92vh;position:fixed;bottom:0;left:0;right:0}
+  #drillModal{align-items:flex-end;padding:0}
+  .loc-month-row{grid-template-columns:80px 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay"><div class="loader-ring"></div><div class="loader-text">Analysing your transactions…</div></div>
+
+<!-- Upload screen -->
+<div id="uploadScreen">
+  <div class="upload-logo">spend<span>.</span></div>
+  <div class="upload-tagline">Personal finance dashboard</div>
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".csv" multiple>
+    <div class="drop-icon">📊</div>
+    <div class="drop-title">Drop your CSV files here</div>
+    <div class="drop-sub">or <strong onclick="document.getElementById('fileInput').click()">browse to upload</strong></div>
+    <div class="file-list" id="fileList"></div>
+  </div>
+  <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">Analyse my spending →</button>
+  <p class="upload-note">Everything runs in your browser — no data is ever uploaded to any server. Share this HTML file with friends.</p>
+  <div class="feats">
+    <div class="feat"><div class="feat-i">🔒</div>100% private</div>
+    <div class="feat"><div class="feat-i">📍</div>Location tracking</div>
+    <div class="feat"><div class="feat-i">🔍</div>Click to drill in</div>
+    <div class="feat"><div class="feat-i">📤</div>Shareable file</div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-logo">spend<span>.</span></div>
+    <button class="btn-sm" onclick="resetToUpload()">+ Upload new CSVs</button>
+  </div>
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="main-tab" onclick="switchTab('locations')">📍 Locations</button>
+    <button class="main-tab" onclick="switchTab('merchants')">Merchants</button>
+    <button class="main-tab" onclick="switchTab('insights')">Insights</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="tab-overview" class="tab-panel active">
+    <div class="dash-body">
+      <div class="filter-bar"><span class="filter-label">Period</span><div id="monthFilters"></div></div>
+      <div class="kpis" id="kpiRow"></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-title">Monthly spending trend <span class="click-hint">click bar = see transactions</span></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Spending by category <span class="click-hint">click slice = drill in</span></div>
+          <div class="legend" id="pieLegend"></div>
+          <div class="chart-wrap" style="height:160px"><canvas id="pieChart"></canvas></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-title">Category breakdown by month <span class="click-hint">click segment = drill in</span></div>
+          <div class="legend" id="stackLegend"></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="stackChart"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Day-of-week spending <span class="click-hint">click bar = see transactions</span></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="dowChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCATIONS TAB -->
+  <div id="tab-locations" class="tab-panel">
+    <div class="dash-body">
+      <div class="panel-title" style="margin-bottom:16px">Total spend by location — click any city to see transactions</div>
+      <div class="loc-summary-grid" id="locSummaryGrid"></div>
+      <div class="panel-title" style="margin-bottom:16px">Month-by-month travel map</div>
+      <div id="locationTimeline"></div>
+    </div>
+  </div>
+
+  <!-- MERCHANTS TAB -->
+  <div id="tab-merchants" class="tab-panel">
+    <div class="dash-body">
+      <div class="filter-bar"><span class="filter-label">Period</span><div id="monthFilters2"></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-title">Top merchants <span class="click-hint">click = see transactions</span></div>
+          <div id="merchantList"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Detected subscriptions <span class="click-hint">click = see charges</span></div>
+          <div id="subsList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS TAB -->
+  <div id="tab-insights" class="tab-panel">
+    <div class="dash-body">
+      <div class="filter-bar"><span class="filter-label">Period</span><div id="monthFilters3"></div></div>
+      <div class="grid-2">
+        <div class="panel"><div class="panel-title">Key insights</div><div id="insightsList"></div></div>
+        <div class="panel"><div class="panel-title">Recommendations</div><div id="recsList"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DRILLDOWN MODAL -->
+<div id="drillModal">
+  <div class="drill-sheet">
+    <div class="drill-header">
+      <div>
+        <div class="drill-title" id="drillTitle">—</div>
+        <div class="drill-subtitle" id="drillSubtitle"></div>
+      </div>
+      <button class="drill-close" onclick="closeDrill()">✕</button>
+    </div>
+    <div class="drill-summary" id="drillSummary"></div>
+    <div class="drill-body" id="drillBody"></div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────
+var TX=[],FILTERED=[],ACTIVE_MONTHS=new Set(),CHARTS={};
+
+var CAT_COLORS={'Food & Dining':'#C4421A','Travel':'#1B4F8A','Shopping':'#7F77DD',
+  'Health & Fitness':'#1D9E75','Transportation':'#9B6B00','Miscellaneous':'#9C9888',
+  'Subscriptions':'#C45087','Utilities':'#4A8A3A','Insurance':'#5C5849',
+  'Entertainment':'#E8A87C','Personal Care':'#8A5C1A'};
+
+var DOW_NAMES=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+// ─── LOCATION RULES ───────────────────────────────────────────────────────
+var LOC_RULES=[
+  [['CANGGU','BATU BOLONG','SEMINYAK','KEROBOKAN','PERERENAN','SANUR','JIMBARAN','UBUD',
+    'ELITEFITBALI','ELITE FIT BALI','FAJAR BALI','SWAY BALI','MAJA SPA','OMANG OMANG',
+    'PEPITOMARKET','MINIMART CG','WARUNG LOCAL','WARUNG VARUNA','CK BIMA','CK MONKEY',
+    'CIRCLE K BAL','LUNA BEACH CLUB','FINNS BEACH','PALM ISLAND','ALCHEMY CANGGU',
+    'INKLUSIV WARUNG','MIEL COFFEE','MOTION FITNESS','MOTION PERERENAN','TIMES BEACH',
+    'VIETNAM BISTRO CANGGU','PT NIRVANA STRENGT','PT UDARA YOGA','ASA SPORTS',
+    'ALILA SEMINYAK','MAYA SANUR','BALI HOLIDAY','SANTANERA','ZALI HO','CSZ*ZALI',
+    'HOME OF BEYOND','WORD HUMMUS','GIGI SUSU','MISHKI','PENNY LANE','BLACK SAND',
+    'BB52','ONSEN RETREAT','MEGATIX INDONESIA','PT FINNET','TYGR SUSHI CANGGU',
+    'MILK & MADU','MM-CG','GRUN','TWO MOODS HO','THE LAWN CANGGU','ZIA TINA',
+    'PAPA LEE','SESSION COFFEE','SEAGRASS','LUSH KITCHEN MBL','ELE RESTAURANT',
+    'CAFE VIDA','MAD RONIN','THE SHADY PIG','AOKU','ZAI CAFE','TIS CAFE','FRESTIVE',
+    'FLORENT ART','GUARDIAN 6425','WARUNG SEA VIEW','BALI'],
+   'Bali','🇮🇩','#1D9E75'],
+  [['SHINSEGAE','STARBUCKSKOREA','TOSSPAYMENTS','SINSAJEILJUM','SINSASUNGWO',
+    'CHEONGDAM','NONHYEON','SAIBYEOKJIB','DOLPAN JIB','JANG WON','WITCH GIMBAP',
+    'MOGGUMUNG','SINSAJUN','ELPEUBA','GS 25  CHEONGDAM','GS25 SINSA','LOTTE GRS',
+    'SEOWOOLGGAKDOOGI','PAINEOLNAIN','UHUJUKSUN','BR KOREA','OUR BAKERY  CHEONGDAM',
+    'HITKEOPI','JIGANG KOREAN','ALL DAY SOUND BAR','THE CHEONGDAM COMPANY',
+    'PESTIBUL POODCOT','MARLY ','KAPEPOEM','ICOVOX COFFEE','BOMBMM','MINOSEU',
+    'FUNKY TOWN','GLIG','SUMMER LANE','ZIES(GS)25','JOOSIKHOI','JOOSIKHWESA',
+    'TOSOKCHON','ORIJINEOLPAEN','KOREA'],
+   'Seoul','🇰🇷','#7F77DD'],
+  [['WEST JAPAN RAILWAY','DIDI MOBILITY JAPAN','COIN LOCKERS','DYDO DRINCO',
+    'KIX TENANTS','SEVEN-ELEVEN','RAKUTENPAY','KINKAKUJI','TOTOGIN','MAGUROKOYA',
+    'KADENTSURUYOSHI','OAKWOOD HOTEL OIKE','KYOTO PORTA','SQ*SUGARI',
+    'MASTER-PIECE KYOTO','JAPAN'],
+   'Japan','🇯🇵','#D4537E'],
+  [['ALP*HEQING','ALP*HONGFA','ALP*SHANGHAI','ALP*SHANGHU','SHANG HAI XING BA KE',
+    'ALP*SHANGHAIKANG','SHANGHAI'],
+   'Shanghai','🇨🇳','#9B6B00'],
+  [['ALP*NANJING','NANJING METRO','ALP*NANJINGLIUCHANGXIN'],'Nanjing','🇨🇳','#BA7517'],
+  [['ALP*DIDI TAXI','ALP*DIDI Taxi','ALP*TIM HORTONS','ALP*DAIRYSTORES',
+    'ALP*OTHERRETAIL','ALP*RESTAURANTS','ALP*BUSINESSSERVICES',
+    'ALP*TRANSPORTATION','ALP*GAMEARCADES'],'China','🇨🇳','#9B6B00'],
+  [['MUJI-KLCC','MFV BY YONG KEE','FOUR SEASONS KL','KLIA','CBTL-SUBANG',
+    'DECATHLON-2005','MALAYSIA'],'Kuala Lumpur','🇲🇾','#1B4F8A'],
+  [['RASAPURA MASTERS','CAFE NESUTO MBS','SINGAPORE','MBS'],'Singapore','🇸🇬','#C45087'],
+  [['SUKHUMVIT','THONGLOR','EKAMAI','EMPORIUM','EMQUARTIER','EMSPHERE',
+    'SUVARNABHUMI','SILOM','SATHORN','PHETCHABURI','PHAYATHAI','PRARAM','RAMA 4',
+    'RAMA9','BANGKOK','THAIPIOKA','THAIPIAOKA','THAILAND','BKK','ONE BANGKOK',
+    'TERMINAL 21','CHAMCHURI','FUJI SUPER','DONKI MALL','LPE*UNREAL',
+    'UNREAL GYM BKK','UNREAL SUKHUMVIT','TRUE MONEY','KANORI','SUSHIRO GH (TH)',
+    'HITORI SHABU','KENSHIN','THONGSMITH','KUB KAO KUB PLA','SIAM ORCHID',
+    'ORANUCH','IBERRY','SWEET PISTA','DARK-EMQUARTIER','GOOD ROOTS','BOOKMAGOL',
+    'BARTELS','BOONSIRI','FASCINO','OKONOMI','BAANKERD','HONEYFUL','CHON CAFE',
+    'BUMP COFFEE','SARNIES','CEH-HO','KHAO RESTO','TOOK LAE DEE','PLEUNPUNG',
+    'BSRC-V.P.K','FIFTY FIFTH','GIIN-HOII','HOBAK','HOT POT MAN','TRUTH OR DARE',
+    'UPPER HOUSE','RABBIT HOLE','BARREL THONGLOR','JAPANESE HIGHBALL',
+    'NIRVANA KITCHEN','SOMPONG','PUDARA','MY CHOICE 1990','WESTERN THAI',
+    'HONEY HOUSE','MANNAJA',"LET'S RELAX",'YUMOTO WELLNESS','HI MASSAGE EKKAMAI',
+    'TIGER MASSAGE','TOP THAI MASSAGE','LEK GOLD MASSAGE','HEADBANG BARBERSHOP',
+    'ESQUIRE BARBER','GOURMET MARKET','REVOLVER INTER','DUSIT THANI BANGKOK',
+    'RADISSON BLU PLAZA','MARRIOTT EXECUTIVE','BANGKOK MARRIOTT','KIMPTON MAA-LAI',
+    'STAYBRIDGE THONGL','AKARA SKY HANUMAN','POP MART (THAILAND)',
+    'SUKHUMVIT CITY MALL','SP THE WORKOUT','PLAYSCAPE','MENSHO TOKYO','JUICE LAND',
+    'YUMOTO'],'Bangkok','🇹🇭','#C4421A']
+];
+function detectLoc(raw){
+  var mu=raw.toUpperCase();
+  for(var i=0;i<LOC_RULES.length;i++){
+    var r=LOC_RULES[i];
+    for(var j=0;j<r[0].length;j++) if(mu.includes(r[0][j].toUpperCase())) return r[1];
+  }
+  return null;
+}
+function locColor(loc){for(var i=0;i<LOC_RULES.length;i++) if(LOC_RULES[i][1]===loc) return LOC_RULES[i][3];return '#9C9888'}
+function locFlag(loc){for(var i=0;i<LOC_RULES.length;i++) if(LOC_RULES[i][1]===loc) return LOC_RULES[i][2];return '🌍'}
+
+// ─── UPLOAD ───────────────────────────────────────────────────────────────
+var dropZone=document.getElementById('dropZone'),fileInput=document.getElementById('fileInput'),
+    fileList=document.getElementById('fileList'),analyzeBtn=document.getElementById('analyzeBtn'),
+    pendingFiles=[];
+dropZone.addEventListener('click',function(){fileInput.click()});
+dropZone.addEventListener('dragover',function(e){e.preventDefault();dropZone.classList.add('drag-over')});
+dropZone.addEventListener('dragleave',function(){dropZone.classList.remove('drag-over')});
+dropZone.addEventListener('drop',function(e){e.preventDefault();dropZone.classList.remove('drag-over');handleFiles([...e.dataTransfer.files])});
+fileInput.addEventListener('change',function(e){handleFiles([...e.target.files])});
+function handleFiles(files){
+  files.filter(function(f){return f.name.toLowerCase().endsWith('.csv')}).forEach(function(f){
+    if(!pendingFiles.find(function(p){return p.name===f.name})) pendingFiles.push(f);
+  });
+  fileList.innerHTML=pendingFiles.map(function(f){return'<div class="file-pill"><span class="dot"></span>'+f.name+'</div>'}).join('');
+  if(pendingFiles.length>0) analyzeBtn.style.display='block';
+}
+
+// ─── DATA PROCESSING ─────────────────────────────────────────────────────
+function normM(m){
+  var mu=m.toUpperCase().trim();
+  if(mu.includes('GRAB')) return 'Grab';
+  if(mu.includes('SPOTIFY')) return 'Spotify';
+  if(mu.includes('NETFLIX')) return 'Netflix';
+  if(mu.includes('APPLE.COM')) return 'Apple';
+  if(mu.includes('OPENAI')||mu.includes('CHATGPT')) return 'OpenAI ChatGPT';
+  if(mu.includes('GOOGLE')||mu.includes('YOUTUBE')) return 'Google / YouTube';
+  if(mu.includes('UBER')) return 'Uber';
+  if(mu==='TRIP.COM'||mu.includes('TRIP.COM')) return 'Trip.com';
+  if(mu.includes('AGODA')) return 'Agoda';
+  if(mu.includes('EXPEDIA')) return 'Expedia';
+  if(mu.includes('BOOKING.COM')||mu.includes('FLIGHTS ON BOOKING')) return 'Booking.com';
+  if(mu.includes('STARBUCKS')) return 'Starbucks';
+  if(mu.includes('MIEL COFFEE')) return 'Miel Coffee';
+  if(mu.includes('7-ELEVEN')||mu.includes('7 11')||mu.includes('SEVEN-ELEVEN')||mu.includes('ALP*7 ELEVEN')) return '7-Eleven';
+  if(mu.includes('KFC')) return 'KFC';
+  if(mu.includes('BURGER KING')) return 'Burger King';
+  if(mu.includes('FIVE GUYS')) return 'Five Guys';
+  if(mu.startsWith('MCD-')||mu.includes('MCDONALDS')) return "McDonald's";
+  if(mu.includes('VYPRVPN')) return 'VyprVPN';
+  if(mu.includes('NYTIMES')) return 'NY Times';
+  if(mu.includes('PADDLE.NET')) return 'Paddle.net';
+  if(mu.includes('WELLCARE')) return 'Wellcare Insurance';
+  if(mu.includes('EASY HEALTH')||mu.includes('OMISE*EASY HEALTH')) return 'Easy Health';
+  if(mu.includes('PAYPAL *TEMU')) return 'Temu';
+  if(mu.includes('BOLT (BY STACKBLITZ)')||(mu.includes('2C2P')&&mu.includes('BOLT'))) return 'Bolt.new';
+  if(mu.includes('UX PILOT')) return 'UX Pilot AI';
+  if(mu.includes('UXFOLIO')) return 'Uxfolio';
+  if(mu.includes('DECATHLON')) return 'Decathlon';
+  if(mu.includes('UNREAL GYM')||mu.includes('UNREAL SUKHUMVIT')||mu.includes('BEAM*UNREAL')||mu.includes('LPE*UNREAL')) return 'Unreal Gym';
+  if(mu.includes('ELITE FIT')||mu.includes('ELITEFITBALI')) return 'Elite Fit Gym';
+  if(mu.includes('KLOOK')) return 'Klook';
+  if(mu.includes('MARRIOTT')) return 'Marriott';
+  if(mu.includes('IPHONE 17')) return 'iPhone 17 Air';
+  if(mu.includes('JEJU AIR')||mu.includes('HAHN AIR')) return 'Airlines';
+  if(mu.includes('SHARING EXCESS')) return 'Sharing Excess';
+  if(mu.includes('TD PAYMENT')) return 'TD Payment Fee';
+  if(mu.includes('TRUE MONEY')||mu.includes('TRUE DIGITAL')) return 'True Money';
+  return m.trim().replace(/\s+/g,' ');
+}
+function catTX(merchant){
+  var mu=merchant.toUpperCase();
+  if(merchant==='Grab'||merchant==='Uber') return ['Transportation','Ride-hailing'];
+  if(mu.includes('ALP*DIDI')||mu.includes('ALP*TRANSPORTATION')||mu.includes('ALP*NANJING METRO')||mu.includes('WEST JAPAN RAILWAY')||mu.includes('COIN LOCKERS')) return ['Transportation','Transit'];
+  if(mu.includes('SHELL')||mu.includes('PETROL')) return ['Transportation','Fuel'];
+  if(merchant==='Airlines'||mu.includes('HAHN AIR')||mu.includes('JEJU AIR')||mu.includes('AIRWAYS')) return ['Travel','Flights'];
+  if(['Trip.com','Agoda','Expedia','Booking.com','Klook'].includes(merchant)||mu.includes('KEYFLIGHT')) return ['Travel','Booking & Activities'];
+  if(mu.includes('MARRIOTT')||mu.includes('DUSIT')||mu.includes('CENTARA')||mu.includes('RADISSON')||mu.includes('KIMPTON')||mu.includes('FOUR SEASONS')||mu.includes('HOTEL')||mu.includes('RESORT')||mu.includes('OAKWOOD')||mu.includes('STAYBRIDGE')||mu.includes('MAYA SANUR')||mu.includes('ALILA')||mu.includes('ARUNOTEL')||mu.includes('AKARA SKY')) return ['Travel','Accommodation'];
+  var cW=['COFFEE','CAFE','CBTL','TIM HORTON','STARBUCKS','MIEL COFFEE','REVOLVER','SARNIES','SESSION COFFEE'];
+  if(cW.some(function(w){return mu.includes(w)})) return ['Food & Dining','Coffee & Cafes'];
+  var gW=['FOOD HALL','FUJI SUPER','PEPITOMARKET','MINIMART','CIRCLE K','CK BIMA','CK MONKEY','WARUNG LOCAL','WARUNG VARUNA','7-ELEVEN','SEVEN-ELEVEN','DONKI MALL','ALP*DAIRYSTORES','ORIENTAL GOURMET','GUARDIAN'];
+  if(gW.some(function(w){return mu.includes(w)})) return ['Food & Dining','Groceries & Convenience'];
+  var dW=['RESTAURANT','RESTO','SUSHI','PIZZA','BURGER','RAMEN','NOODLE','HOT POT','SHABU','GRILL','DINING','KITCHEN','WARUNG','BISTRO','BAR','BAKED','BAKERY','KUB KAO','BEACH HOUSE','LUNA BEACH','FINNS BEACH','MANNAJA','BOONSIRI','MENSHO','KANORI','SUSHIRO','HITORI','IBERRY','MISHKI','ALCHEMY','INKLUSIV','SEAGRASS','SANTANERA','TYGR','BB52','PALM ISLAND','SHADY PIG','THE BARREL','RABBIT HOLE','TRUTH OR DARE','SIAM ORCHID','UPPER HOUSE','BLACK SAND','FIVE GUYS','KFC','BURGER KING','ORANUCH','THONGSMITH','KENSHIN','FASCINO','OKONOMI','BAANKERD','KHAO','GOT','LUSH KITCHEN','RASAPURA','KINKI FINE','PENNY LANE','THE LAWN','GIIN-HOII','CHOW','MAD RONIN','GIGI SUSU','PUDARA','TWO MOODS','VIETNAM BISTRO','JOHNNY ROCKETS','TONYS NEW YORK','DOLPAN','JANG WON','WITCH GIMBAP','MOGGUMUNG','SINSAJUN','HOT POT MAN','THAIPIAOKA','THAIPIOKA','BDAY CELEBRATION','CHON CAFE','BSRC-V.P.K','FIFTY FIFTH','CEH-HO','ALP*RESTAURANTS','ALP*HEQING','ALP*HONGFA','ALP*NANJING','ALP*SHANGHAI','GS 25','GS25','LOTTE GRS','INS LAND','MILK & MADU','MFV BY YONG KEE','TOTOGIN','KINKAKUJI','RAKUTENPAY','SCT-','BT-ONE BANGKOK','SOMPONG','NIRVANA KITCHEN','TOOK LAE DEE','PLEUNPUNG','BOOKMAGOL','HONEY HOUSE','JUICE LAND','HOME OF BEYOND','WORD HUMMUS','DARK-EM','SWEET PISTA','GOURMET MARKET','EMPORIUM','MAVAMMY','BARTELS','SUMMER LANE','BOMBMM','MARLY','OSCA','ZIA TINA','PAPA LEE','TIMES BEACH','GOOD ROOTS','HONEYFUL'];
+  if(dW.some(function(w){return mu.includes(w)})) return ['Food & Dining','Restaurants & Bars'];
+  var sM=['Spotify','Netflix','OpenAI ChatGPT','Google / YouTube','VyprVPN','NY Times','Bolt.new','UX Pilot AI','Uxfolio','Apple'];
+  if(sM.includes(merchant)||mu.includes('PADDLE.NET')||mu.includes('LEANN')||mu.includes('MACPAW')||mu.includes('ADBLCK')) return ['Subscriptions','Digital Services'];
+  var gyW=['GYM','FITNESS','YOGA','WORKOUT','ELITE FIT','UNREAL GYM','NIRVANA STRENGTH','UDARA YOGA','BEAM*UNREAL','SP THE WORKOUT','ASA SPORTS','XDT*PT NIRVANA','XDT*PT UDARA','LPE*UNREAL','DECATHLON'];
+  if(gyW.some(function(w){return mu.includes(w)})||merchant==='Decathlon') return ['Health & Fitness','Gym & Sports'];
+  var spW=["LET'S RELAX",'LETS RELAX','MASSAGE','SPA ','WELLNESS','YUMOTO','ONSEN RETREAT','FAJAR BALI','SWAY BALI','MAJA SPA','OMANG OMANG'];
+  if(spW.some(function(w){return mu.includes(w)})) return ['Health & Fitness','Spa & Wellness'];
+  var mdW=['MEDICAL','PHARMACY','HYDRO MEDICAL','BERLIN PHARMACY','CLINIC','HOSPITAL'];
+  if(mdW.some(function(w){return mu.includes(w)})) return ['Health & Fitness','Medical'];
+  if(merchant==='Wellcare Insurance'||merchant==='Easy Health'||mu.includes('INSURANCE')||mu.includes('WELLCARE')||mu.includes('EASY HEALTH')) return ['Insurance','Health Insurance'];
+  if(mu.includes('IPHONE')||mu.includes('ISTUDIO')||mu.includes('SAMSUNG')) return ['Shopping','Electronics'];
+  if(mu.includes('KICKS')||mu.includes('SHOECREAM')||mu.includes('TEMU')||mu.includes('POP MART')||mu.includes('MUJI')||mu.includes('EMSPHERE')||mu.includes('P O-MBK')||mu.includes('WHSMITH')||mu.includes('KYOTO PORTA')||mu.includes('KLIA')||merchant==='Temu'||mu.includes('SHINSEGAE')||mu.includes('EVP*SALONE')) return ['Shopping','Retail & Other'];
+  if(mu.includes('BARBER')||mu.includes('HEADBANG')||mu.includes('ESQUIRE BARBER')||mu.includes('HAIRCUT')||mu.includes('SALON')) return ['Personal Care','Grooming & Beauty'];
+  if(mu.includes('MEGATIX')||mu.includes('CONCERT')||mu.includes('CINEMA')||mu.includes('PLAYSCAPE')||mu.includes('ALP*GAMEARCADES')) return ['Entertainment','Events'];
+  if(mu.includes('TRUE MONEY')||mu.includes('TRUE DIGITAL')||mu.includes('TELCO')||mu.includes('ELECTRIC')) return ['Utilities','Bills & Services'];
+  if(mu.includes('SHARING EXCESS')||mu.includes('DONATION')) return ['Miscellaneous','Charity'];
+  if(mu.includes('TD PAYMENT')||mu.includes('BELL CANADA')||mu.includes('WWW.2C2P')||mu.includes('PT FINNET')) return ['Miscellaneous','Fees'];
+  return ['Miscellaneous','Other'];
+}
+
+function parseCSV(file){
+  return new Promise(function(resolve){
+    Papa.parse(file,{header:false,skipEmptyLines:true,complete:function(results){
+      var rows=[];
+      results.data.forEach(function(row){
+        if(row.length<3) return;
+        var dateStr=row[0],merchant=(row[1]||'').trim();
+        var debit=parseFloat(row[2])||0,credit=parseFloat(row[3])||0;
+        var amount=debit-credit;
+        if(!merchant||!dateStr||amount<=0) return;
+        var pts=dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if(!pts) return;
+        var date=new Date(pts[3]+'-'+pts[1].padStart(2,'0')+'-'+pts[2].padStart(2,'0'));
+        if(isNaN(date.getTime())) return;
+        var clean=normM(merchant);
+        var cp=catTX(clean);
+        var loc=detectLoc(merchant)||detectLoc(clean);
+        rows.push({date:date,merchant:clean,rawMerchant:merchant,amount:amount,
+          category:cp[0],subcategory:cp[1],location:loc});
+      });
+      resolve(rows);
+    }});
+  });
+}
+function dedup(rows){
+  var seen=new Set();
+  return rows.filter(function(r){
+    var k=r.date.toISOString().slice(0,10)+'_'+r.merchant+'_'+r.amount.toFixed(2);
+    if(seen.has(k)) return false; seen.add(k); return true;
+  });
+}
+
+async function runAnalysis(){
+  if(!pendingFiles.length) return;
+  document.getElementById('loadingOverlay').style.display='flex';
+  await new Promise(function(r){setTimeout(r,50)});
+  try{
+    var results=await Promise.all(pendingFiles.map(parseCSV));
+    TX=dedup(results.flat());
+    TX.sort(function(a,b){return a.date-b.date});
+    ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
+    build();
+    document.getElementById('uploadScreen').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+  } finally { document.getElementById('loadingOverlay').style.display='none' }
+}
+function resetToUpload(){
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('uploadScreen').style.display='flex';
+  pendingFiles=[];fileList.innerHTML='';analyzeBtn.style.display='none';
+  TX=[];FILTERED=[];
+  Object.values(CHARTS).forEach(function(c){try{c.destroy()}catch(e){}});
+  CHARTS={};
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────
+function mk(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function fmM(k){var p=k.split('-'),ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return ms[parseInt(p[1])-1]+' '+p[0]}
+function fmt(v,d){d=d||0;return'$'+v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function groupBy(arr,fn){var o={};arr.forEach(function(x){var k=fn(x);if(!o[k])o[k]=[];o[k].push(x)});return o}
+function sum(arr){return arr.reduce(function(s,v){return s+v},0)}
+function sumAmt(arr){return sum(arr.map(function(r){return r.amount}))}
+function fmtDate(d){var ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return d.getDate()+' '+ms[d.getMonth()]}
+
+// tab switcher
+function switchTab(name){
+  var names=['overview','locations','merchants','insights'];
+  document.querySelectorAll('.main-tab').forEach(function(t,i){t.classList.toggle('active',names[i]===name)});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.toggle('active',p.id==='tab-'+name)});
+}
+
+// ─── FILTER BARS ─────────────────────────────────────────────────────────
+function buildFilters(){
+  var months=[...new Set(TX.map(function(r){return mk(r.date)}))].sort();
+  ['monthFilters','monthFilters2','monthFilters3'].forEach(function(id){
+    var c=document.getElementById(id); if(!c) return; c.innerHTML='';
+    var ap=document.createElement('button');
+    ap.className='filter-pill active';ap.textContent='All time';ap.dataset.month='all';
+    ap.onclick=function(){
+      ACTIVE_MONTHS=new Set(months);
+      document.querySelectorAll('#'+id+' .filter-pill').forEach(function(p){p.classList.remove('active')});
+      ap.classList.add('active');applyFilters();
+    };
+    c.appendChild(ap);
+    months.forEach(function(m){
+      var btn=document.createElement('button');
+      btn.className='filter-pill';btn.textContent=fmM(m);btn.dataset.month=m;
+      btn.onclick=function(){
+        document.querySelectorAll('#'+id+' .filter-pill').forEach(function(p){p.classList.remove('active')});
+        btn.classList.add('active');ACTIVE_MONTHS=new Set([m]);applyFilters();
+      };
+      c.appendChild(btn);
+    });
+  });
+}
+
+function build(){buildFilters();applyFilters();renderLocTab()}
+function applyFilters(){
+  FILTERED=TX.filter(function(r){return ACTIVE_MONTHS.has(mk(r.date))});
+  renderKPIs();renderTrend();renderPie();renderStack();renderDOW();renderMerchants();renderSubs();renderInsights();renderRecs();
+}
+
+// ─── KPIs ─────────────────────────────────────────────────────────────────
+function renderKPIs(){
+  var tx=FILTERED,total=sumAmt(tx);
+  var months=[...new Set(tx.map(function(r){return mk(r.date)}))];
+  var avgM=months.length>0?total/months.length:0;
+  var byM=groupBy(tx,function(r){return mk(r.date)});
+  var sortM=Object.keys(byM).sort();
+  var mTots=sortM.map(function(m){return sumAmt(byM[m])});
+  var maxM=mTots.length?Math.max.apply(null,mTots):0;
+  var maxMK=sortM[mTots.indexOf(maxM)];
+  var badge='';
+  if(mTots.length>=2){
+    var last=mTots[mTots.length-1],prev=mTots[mTots.length-2];
+    var pct=((last-prev)/prev*100).toFixed(0);
+    badge=pct>0?'<div class="kpi-badge up">↑ '+pct+'% vs prev</div>':'<div class="kpi-badge dn">↓ '+Math.abs(pct)+'% vs prev</div>';
+  }
+  var topCat=topCategory(tx);
+  document.getElementById('kpiRow').innerHTML=
+    '<div class="kpi"><div class="kpi-label">Total spend</div><div class="kpi-value">'+fmt(total)+'</div><div class="kpi-sub">'+tx.length+' transactions · '+months.length+' months</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Monthly average</div><div class="kpi-value">'+fmt(avgM)+'</div>'+badge+'</div>'+
+    '<div class="kpi" style="cursor:pointer" onclick="openDrill(\'cat:\'+\''+topCat+'\')" title="Click to see all '+topCat+' transactions"><div class="kpi-label">Top category</div><div class="kpi-value" style="font-size:1.2rem">'+topCat+'</div><div class="kpi-sub">'+fmt(topCatAmt(tx))+' — click to drill in</div></div>'+
+    '<div class="kpi" style="cursor:pointer" onclick="openDrill(\'month:\'+\''+maxMK+'\')" title="Click to see all transactions in '+fmM(maxMK)+'"><div class="kpi-label">Highest month</div><div class="kpi-value" style="font-size:1.4rem">'+(maxMK?fmt(maxM):'—')+'</div><div class="kpi-sub">'+(maxMK?fmM(maxMK)+' — click to drill in':'')+'</div></div>';
+}
+function topCategory(tx){var g=groupBy(tx,function(r){return r.category});var b='',bA=0;for(var k in g){var s=sumAmt(g[k]);if(s>bA){bA=s;b=k}}return b}
+function topCatAmt(tx){var g=groupBy(tx,function(r){return r.category});var b=0;for(var k in g){var s=sumAmt(g[k]);if(s>b)b=s}return b}
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────
+function renderTrend(){
+  var byM=groupBy(FILTERED,function(r){return mk(r.date)});
+  var keys=Object.keys(byM).sort();
+  var tots=keys.map(function(m){return +sumAmt(byM[m]).toFixed(2)});
+  if(CHARTS.trend) CHARTS.trend.destroy();
+  var canvas=document.getElementById('trendChart');
+  CHARTS.trend=new Chart(canvas,{
+    type:'bar',
+    data:{labels:keys.map(fmM),datasets:[{
+      data:tots,
+      backgroundColor:tots.map(function(v,i){return i===tots.indexOf(Math.max.apply(null,tots))?'#C4421A':'rgba(196,66,26,0.4)'}),
+      borderRadius:4,hoverBackgroundColor:'#C4421A'
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' '+fmt(c.parsed.y)}}}},
+      scales:{y:{ticks:{callback:function(v){return'$'+(v/1000).toFixed(0)+'k'},font:{size:10}},grid:{color:'rgba(28,26,20,0.06)'}},x:{ticks:{font:{size:10}},grid:{display:false}}},
+      onClick:function(e,els){
+        if(els.length){openDrill('month:'+keys[els[0].index])}
+      }
+    }
+  });
+}
+
+function renderPie(){
+  var byCat=groupBy(FILTERED,function(r){return r.category});
+  var entries=Object.entries(byCat).map(function(e){return[e[0],sumAmt(e[1])]}).sort(function(a,b){return b[1]-a[1]}).slice(0,8);
+  var labels=entries.map(function(e){return e[0]});
+  var data=entries.map(function(e){return+e[1].toFixed(2)});
+  var colors=labels.map(function(l){return CAT_COLORS[l]||'#9C9888'});
+  var total=sum(data);
+  document.getElementById('pieLegend').innerHTML=labels.map(function(l,i){
+    return'<div class="legend-item" style="cursor:pointer" onclick="openDrill(\'cat:'+l+'\')" title="Click to drill into '+l+'"><span class="legend-dot" style="background:'+colors[i]+'"></span>'+l+' '+(data[i]/total*100).toFixed(0)+'%</div>';
+  }).join('');
+  if(CHARTS.pie) CHARTS.pie.destroy();
+  CHARTS.pie=new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:labels,datasets:[{data:data,backgroundColor:colors,borderWidth:2,borderColor:'#FDFCF8',hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' '+c.label+': '+fmt(c.parsed)}}}},
+      onClick:function(e,els){if(els.length){openDrill('cat:'+labels[els[0].index])}}
+    }
+  });
+}
+
+function renderStack(){
+  var byM=groupBy(FILTERED,function(r){return mk(r.date)});
+  var keys=Object.keys(byM).sort();
+  var allCats=[...new Set(FILTERED.map(function(r){return r.category}))];
+  var catT=allCats.map(function(c){return{c:c,t:sumAmt(FILTERED.filter(function(r){return r.category===c}))}}).sort(function(a,b){return b.t-a.t});
+  var topCats=catT.slice(0,6).map(function(x){return x.c});
+  document.getElementById('stackLegend').innerHTML=topCats.map(function(c){
+    return'<div class="legend-item" style="cursor:pointer" onclick="openDrill(\'cat:'+c+'\')" title="Drill into '+c+'"><span class="legend-dot" style="background:'+(CAT_COLORS[c]||'#9C9888')+'"></span>'+c+'</div>';
+  }).join('');
+  if(CHARTS.stack) CHARTS.stack.destroy();
+  CHARTS.stack=new Chart(document.getElementById('stackChart'),{
+    type:'bar',
+    data:{labels:keys.map(fmM),datasets:topCats.map(function(cat){return{
+      label:cat,
+      data:keys.map(function(m){var rows=(byM[m]||[]).filter(function(r){return r.category===cat});return+sumAmt(rows).toFixed(2)}),
+      backgroundColor:CAT_COLORS[cat]||'#9C9888',borderRadius:2
+    }})},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' '+c.dataset.label+': '+fmt(c.parsed.y)}}}},
+      scales:{x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}},y:{stacked:true,ticks:{callback:function(v){return'$'+(v/1000).toFixed(0)+'k'},font:{size:10}},grid:{color:'rgba(28,26,20,0.06)'}}},
+      onClick:function(e,els){
+        if(els.length){
+          var cat=topCats[els[0].datasetIndex];
+          var month=keys[els[0].index];
+          openDrill('catmonth:'+cat+':'+month);
+        }
+      }
+    }
+  });
+}
+
+function renderDOW(){
+  var dIdx={Sunday:6,Monday:0,Tuesday:1,Wednesday:2,Thursday:3,Friday:4,Saturday:5};
+  var totals=[0,0,0,0,0,0,0];
+  FILTERED.forEach(function(r){
+    var dN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    totals[dIdx[dN[r.date.getDay()]]]+=r.amount;
+  });
+  var maxV=Math.max.apply(null,totals);
+  if(CHARTS.dow) CHARTS.dow.destroy();
+  CHARTS.dow=new Chart(document.getElementById('dowChart'),{
+    type:'bar',
+    data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{
+      data:totals.map(function(v){return+v.toFixed(2)}),
+      backgroundColor:totals.map(function(v){return v===maxV?'#C4421A':'rgba(196,66,26,0.3)'}),
+      hoverBackgroundColor:'#C4421A',borderRadius:4
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' '+fmt(c.parsed.y)}}}},
+      scales:{y:{ticks:{callback:function(v){return'$'+(v/1000).toFixed(1)+'k'},font:{size:10}},grid:{color:'rgba(28,26,20,0.06)'}},x:{ticks:{font:{size:10}},grid:{display:false}}},
+      onClick:function(e,els){
+        if(els.length){openDrill('dow:'+DOW_NAMES[els[0].index])}
+      }
+    }
+  });
+}
+
+// ─── MERCHANTS & SUBS ─────────────────────────────────────────────────────
+function renderMerchants(){
+  var byM=groupBy(FILTERED,function(r){return r.merchant});
+  var top=Object.entries(byM).map(function(e){return[e[0],sumAmt(e[1])]}).sort(function(a,b){return b[1]-a[1]}).slice(0,12);
+  var maxA=top[0]?top[0][1]:1;
+  document.getElementById('merchantList').innerHTML=top.map(function(e,i){
+    return'<div class="merchant-row" style="cursor:pointer" onclick="openDrill(\'merch:'+encodeURIComponent(e[0])+'\')" title="Click to see all '+e[0]+' transactions">'+
+      '<span class="merch-rank">'+(i+1)+'</span>'+
+      '<span class="merch-name">'+e[0]+'</span>'+
+      '<div class="merch-bar-bg"><div class="merch-bar-fill" style="width:'+((e[1]/maxA)*100).toFixed(0)+'%;background:'+(i===0?'#C4421A':i<3?'#9B6B00':'#D3D1C7')+'"></div></div>'+
+      '<span class="merch-amt">'+fmt(e[1])+'</span>'+
+    '</div>';
+  }).join('');
+}
+
+function renderSubs(){
+  var subKW=['Spotify','Netflix','OpenAI ChatGPT','Google / YouTube','VyprVPN','NY Times','Bolt.new','UX Pilot AI','Uxfolio','Apple','Paddle.net','LEANN MEDIA'];
+  var subTX=FILTERED.filter(function(r){return r.category==='Subscriptions'||subKW.some(function(k){return r.merchant.includes(k)})});
+  var byM=groupBy(subTX,function(r){return r.merchant});
+  var subs=Object.entries(byM).map(function(e){return[e[0],sumAmt(e[1]),e[1].length]}).sort(function(a,b){return b[1]-a[1]});
+  if(!subs.length){document.getElementById('subsList').innerHTML='<div class="empty-state">No subscriptions detected</div>';return}
+  document.getElementById('subsList').innerHTML=subs.map(function(s){
+    return'<div class="sub-item" style="cursor:pointer" onclick="openDrill(\'merch:'+encodeURIComponent(s[0])+'\')" title="Click to see all charges">'+
+      '<span class="sub-name">'+s[0]+'</span>'+
+      '<span class="sub-meta">'+s[2]+'× charge'+(s[2]>1?'s':'')+'</span>'+
+      '<span class="sub-amt">'+fmt(s[1])+'</span>'+
+    '</div>';
+  }).join('');
+}
+
+// ─── INSIGHTS & RECS ──────────────────────────────────────────────────────
+function renderInsights(){
+  var tx=FILTERED,total=sumAmt(tx);
+  var byM=groupBy(tx,function(r){return mk(r.date)});
+  var nM=Object.keys(byM).length||1,avgM=total/nM;
+  var byCat=groupBy(tx,function(r){return r.category});
+  var fT=sumAmt(byCat['Food & Dining']||[]),fPct=(fT/total*100).toFixed(0);
+  var tT=sumAmt(byCat['Transportation']||[]);
+  var sT=sumAmt(byCat['Subscriptions']||[]);
+  var smallTX=tx.filter(function(r){return r.amount<10});
+  var smT=sumAmt(smallTX);
+  var coffs=tx.filter(function(r){return r.subcategory==='Coffee & Cafes'});
+  var cT=sumAmt(coffs);
+  var ins=[];
+  if(fPct>40) ins.push({t:'warn',ti:'Food & Dining at '+fPct+'% of spend',tx:fmt(fT)+' on food — '+fmt(fT/nM)+'/month. The single biggest lever to pull.',drill:'cat:Food & Dining'});
+  if(tT>avgM*0.1) ins.push({t:'info',ti:'Transport costs '+fmt(tT/nM)+'/month',tx:'Ride-hailing adds up. Pre-planning routes or using public transit could cut this.',drill:'cat:Transportation'});
+  if(sT>100) ins.push({t:'warn',ti:fmt(sT)+' in subscriptions detected',tx:fmt(sT/nM)+'/month. Review which ones you actively use vs. forgot to cancel.',drill:'cat:Subscriptions'});
+  if(smallTX.length>50) ins.push({t:'info',ti:smallTX.length+' micro-transactions under $10',tx:'Total: '+fmt(smT)+'. These feel trivial but compound significantly.',drill:'small'});
+  if(coffs.length>10) ins.push({t:'warn',ti:coffs.length+' café visits totalling '+fmt(cT),tx:'Average '+fmt(cT/coffs.length)+' per visit. Home brewing 3x/week is the classic low-pain cut.',drill:'subcat:Coffee & Cafes'});
+  var mTots=Object.values(byM).map(function(v){return sumAmt(v)});
+  if(mTots.length>=2&&mTots[mTots.length-1]<mTots[mTots.length-2])
+    ins.push({t:'ok',ti:'Spending dropped last month',tx:'Down '+fmt(mTots[mTots.length-2]-mTots[mTots.length-1])+' from the prior month. Good trajectory.'});
+  if(!ins.length) ins.push({t:'ok',ti:'Looking balanced overall',tx:'No major red flags detected. Keep an eye on subscriptions and dining.'});
+  document.getElementById('insightsList').innerHTML=ins.map(function(i){
+    var drillLink=i.drill?'<span style="font-size:9px;color:var(--blue);cursor:pointer;text-decoration:underline;margin-top:4px;display:inline-block" onclick="openDrill(\''+i.drill+'\')">See transactions →</span>':'';
+    return'<div class="insight insight-'+i.t+'"><div class="insight-title">'+i.ti+'</div><div class="insight-text">'+i.tx+'</div>'+drillLink+'</div>';
+  }).join('');
+}
+
+function renderRecs(){
+  var tx=FILTERED,total=sumAmt(tx);
+  var byM=groupBy(tx,function(r){return mk(r.date)});
+  var nM=Object.keys(byM).length||1;
+  var byCat=groupBy(tx,function(r){return r.category});
+  var fA=sumAmt(byCat['Food & Dining']||[])/nM;
+  var tA=sumAmt(byCat['Transportation']||[])/nM;
+  var sA=sumAmt(byCat['Subscriptions']||[])/nM;
+  var cA=sumAmt(tx.filter(function(r){return r.subcategory==='Coffee & Cafes'}))/nM;
+  var recs=[
+    {n:'1',t:'<strong>Set a monthly dining budget of '+fmt(fA*0.7)+'.</strong> You\'re at '+fmt(fA)+'/month on food. A 30% cut by cooking more or choosing cheaper venues is achievable.',s:fmt(fA*0.3)+'/mo'},
+    {n:'2',t:'<strong>Audit your '+fmt(sA)+'/month in subscriptions.</strong> Cancel anything you haven\'t used in 30 days. Consolidate overlapping tools.',s:fmt(sA*0.3)+'/mo'},
+    {n:'3',t:'<strong>Replace 3 café visits/week with home coffee.</strong> At '+fmt(cA)+'/month on cafes, a home setup pays for itself quickly.',s:fmt(cA*0.4)+'/mo'},
+    {n:'4',t:'<strong>Set a '+fmt(tA*0.6)+'/month transport cap.</strong> Use public transit for regular trips, reserve ride-hailing for late nights.',s:fmt(tA*0.4)+'/mo'},
+    {n:'5',t:'<strong>Apply a 24-hour rule on purchases over $100.</strong> Most impulse buys feel less urgent the next day.',s:'~'+fmt(total*0.05/nM)+'/mo est.'}
+  ];
+  document.getElementById('recsList').innerHTML=recs.map(function(r){
+    return'<div class="rec"><span class="rec-n">'+r.n+'</span><div class="rec-body">'+r.t+'</div><span class="rec-save">'+r.s+'</span></div>';
+  }).join('');
+}
+
+// ─── LOCATION TAB ─────────────────────────────────────────────────────────
+function renderLocTab(){
+  var tx=TX;
+  // Summary
+  var locT={};
+  tx.forEach(function(r){if(r.location){if(!locT[r.location]){locT[r.location]={a:0,n:0}}locT[r.location].a+=r.amount;locT[r.location].n++}});
+  var sorted=Object.entries(locT).sort(function(a,b){return b[1].a-a[1].a});
+  var grand=sum(sorted.map(function(e){return e[1].a}));
+  document.getElementById('locSummaryGrid').innerHTML=sorted.map(function(e){
+    var loc=e[0],d=e[1],col=locColor(loc),flag=locFlag(loc);
+    var pct=(d.a/grand*100).toFixed(0);
+    return'<div class="loc-summary-card" onclick="openDrill(\'loc:'+loc+'\')" title="Click to see all '+loc+' transactions">'+
+      '<div class="loc-flag">'+flag+'</div>'+
+      '<div class="loc-name">'+loc+'</div>'+
+      '<div class="loc-amount" style="color:'+col+'">'+fmt(d.a)+'</div>'+
+      '<div class="loc-detail">'+d.n+' transactions · '+pct+'% of tagged</div>'+
+      '<div class="loc-bar"><div class="loc-bar-fill" style="width:'+pct+'%;background:'+col+'"></div></div>'+
+    '</div>';
+  }).join('');
+
+  // Timeline
+  var months=[...new Set(tx.map(function(r){return mk(r.date)}))].sort();
+  var html='';
+  months.forEach(function(month){
+    var mTX=tx.filter(function(r){return mk(r.date)===month});
+    var mTotal=sumAmt(mTX);
+    var byL={};
+    mTX.forEach(function(r){
+      var loc=r.location||'__unk__';
+      if(!byL[loc]){byL[loc]={a:0,n:0,cats:{}}}
+      byL[loc].a+=r.amount;byL[loc].n++;
+      if(!byL[loc].cats[r.category])byL[loc].cats[r.category]=0;
+      byL[loc].cats[r.category]+=r.amount;
+    });
+    var known=Object.entries(byL).filter(function(e){return e[0]!=='__unk__'}).sort(function(a,b){return b[1].a-a[1].a});
+    var unkAmt=byL['__unk__']?byL['__unk__'].a:0;
+    var cards=known.map(function(e){
+      var loc=e[0],d=e[1],col=locColor(loc),flag=locFlag(loc);
+      var pct=(d.a/mTotal*100).toFixed(0);
+      var topCats=Object.entries(d.cats).sort(function(a,b){return b[1]-a[1]}).slice(0,2).map(function(c){return c[0]});
+      return'<div class="loc-card" onclick="openDrill(\'locmonth:'+loc+':'+month+'\')" title="Click to drill in">'+
+        '<div class="loc-card-top"><span class="loc-card-flag">'+flag+'</span><span class="loc-card-name">'+loc+'</span></div>'+
+        '<div class="loc-card-amount" style="color:'+col+'">'+fmt(d.a)+'</div>'+
+        '<div class="loc-card-detail">'+d.n+' transactions · '+pct+'% of month</div>'+
+        '<div class="loc-cat-pills">'+topCats.map(function(c){return'<span class="loc-cat-pill">'+c+'</span>'}).join('')+'</div>'+
+      '</div>';
+    }).join('');
+    var unkNote=unkAmt>0?'<div class="loc-untagged">+'+fmt(unkAmt)+' from online/untagged merchants</div>':'';
+    html+='<div class="loc-month-row">'+
+      '<div class="loc-month-left"><div class="loc-month-name">'+fmM(month)+'</div><div class="loc-month-total">'+fmt(mTotal)+'</div></div>'+
+      '<div class="loc-month-right"><div class="loc-cards-row">'+(cards||'<div style="font-size:11px;color:var(--ink3);padding-top:4px">No location data</div>')+'</div>'+unkNote+'</div>'+
+    '</div>';
+  });
+  document.getElementById('locationTimeline').innerHTML=html;
+}
+
+// ─── DRILLDOWN MODAL ──────────────────────────────────────────────────────
+function openDrill(key){
+  var modal=document.getElementById('drillModal');
+  var rows, title, subtitle;
+
+  if(key.startsWith('month:')){
+    var month=key.slice(6);
+    rows=FILTERED.filter(function(r){return mk(r.date)===month});
+    title=fmM(month);
+    subtitle='All transactions this month';
+  } else if(key.startsWith('cat:')){
+    var cat=key.slice(4);
+    rows=FILTERED.filter(function(r){return r.category===cat});
+    title=cat;
+    subtitle='All transactions in category';
+  } else if(key.startsWith('catmonth:')){
+    var parts=key.slice(9).split(':');
+    var cat=parts[0],month=parts[1];
+    rows=FILTERED.filter(function(r){return r.category===cat&&mk(r.date)===month});
+    title=cat+' — '+fmM(month);
+    subtitle='Category × month drilldown';
+  } else if(key.startsWith('subcat:')){
+    var sub=key.slice(7);
+    rows=FILTERED.filter(function(r){return r.subcategory===sub});
+    title=sub;
+    subtitle='All transactions in subcategory';
+  } else if(key.startsWith('merch:')){
+    var merch=decodeURIComponent(key.slice(6));
+    rows=FILTERED.filter(function(r){return r.merchant===merch});
+    title=merch;
+    subtitle='All charges from this merchant';
+  } else if(key.startsWith('loc:')){
+    var loc=key.slice(4);
+    rows=FILTERED.filter(function(r){return r.location===loc});
+    title=locFlag(loc)+' '+loc;
+    subtitle='All transactions in this location';
+  } else if(key.startsWith('locmonth:')){
+    var parts=key.slice(9).split(':');
+    var loc=parts[0],month=parts[1];
+    rows=TX.filter(function(r){return r.location===loc&&mk(r.date)===month});
+    title=locFlag(loc)+' '+loc+' — '+fmM(month);
+    subtitle='Location × month drilldown';
+  } else if(key==='small'){
+    rows=FILTERED.filter(function(r){return r.amount<10});
+    title='Micro-transactions under $10';
+    subtitle='Every charge below $10';
+  } else if(key.startsWith('dow:')){
+    var dow=key.slice(4);
+    var dIdx={Monday:1,Tuesday:2,Wednesday:3,Thursday:4,Friday:5,Saturday:6,Sunday:0};
+    rows=FILTERED.filter(function(r){return r.date.getDay()===dIdx[dow]});
+    title=dow;
+    subtitle='All transactions on '+dow+'s';
+  } else { return; }
+
+  if(!rows||!rows.length){
+    document.getElementById('drillTitle').textContent='No data';
+    document.getElementById('drillSubtitle').textContent='';
+    document.getElementById('drillSummary').innerHTML='';
+    document.getElementById('drillBody').innerHTML='<div class="empty-state">No transactions found.</div>';
+    modal.classList.add('open'); return;
+  }
+
+  rows=rows.slice().sort(function(a,b){return b.date-a.date});
+
+  var total=sumAmt(rows);
+  var avg=total/rows.length;
+  var byC=groupBy(rows,function(r){return r.category});
+  var topCat=Object.entries(byC).sort(function(a,b){return sumAmt(b[1])-sumAmt(a[1])});
+  var topCatName=topCat[0]?topCat[0][0]:'—';
+
+  document.getElementById('drillTitle').textContent=title;
+  document.getElementById('drillSubtitle').textContent=subtitle;
+  document.getElementById('drillSummary').innerHTML=
+    '<div class="drill-stat"><div class="drill-stat-label">Total</div><div class="drill-stat-value">'+fmt(total)+'</div></div>'+
+    '<div class="drill-stat"><div class="drill-stat-label">Transactions</div><div class="drill-stat-value">'+rows.length+'</div></div>'+
+    '<div class="drill-stat"><div class="drill-stat-label">Avg per tx</div><div class="drill-stat-value">'+fmt(avg,2)+'</div></div>'+
+    '<div class="drill-stat"><div class="drill-stat-label">Top category</div><div class="drill-stat-value" style="font-size:.9rem">'+topCatName+'</div></div>';
+
+  // Group by date for headers
+  var byDate=groupBy(rows,function(r){return r.date.toISOString().slice(0,10)});
+  var dateKeys=Object.keys(byDate).sort(function(a,b){return b.localeCompare(a)});
+
+  var bodyHTML='';
+  dateKeys.forEach(function(dk){
+    var dayRows=byDate[dk];
+    var dayTotal=sumAmt(dayRows);
+    var d=new Date(dk+'T12:00:00');
+    bodyHTML+='<div class="drill-section-head">'+fmtDate(d)+' &nbsp;·&nbsp; '+dayRows.length+' tx &nbsp;·&nbsp; '+fmt(dayTotal)+'</div>';
+    dayRows.forEach(function(r){
+      var locBadge=r.location?'<span class="dr-loc">'+locFlag(r.location)+'</span>':'';
+      bodyHTML+='<div class="drill-row">'+
+        '<span class="dr-merch">'+r.merchant+'</span>'+
+        locBadge+
+        '<span class="dr-cat" style="background:'+(CAT_COLORS[r.category]||'#9C9888')+'22;color:'+(CAT_COLORS[r.category]||'#9C9888')+'">'+r.category+'</span>'+
+        '<span class="dr-amt">'+fmt(r.amount,2)+'</span>'+
+      '</div>';
+    });
+  });
+  document.getElementById('drillBody').innerHTML=bodyHTML;
+  modal.classList.add('open');
+  document.getElementById('drillBody').scrollTop=0;
+}
+
+function closeDrill(){
+  document.getElementById('drillModal').classList.remove('open');
+}
+document.getElementById('drillModal').addEventListener('click',function(e){
+  if(e.target===this) closeDrill();
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape') closeDrill()});
+</script>
+</body>
+</html>
