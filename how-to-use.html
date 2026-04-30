@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>spend. — How to use the dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F5F2EB;--card:#FDFCF8;--ink:#1C1A14;--ink2:#5C5849;--ink3:#9C9888;--accent:#C4421A;--green:#2D6A4F;--border:rgba(28,26,20,0.10);--radius:12px;--font-d:'Fraunces',Georgia,serif;--font-m:'DM Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-m);background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+.hero{background:var(--ink);color:#F5F2EB;padding:4rem 2rem;text-align:center}
+.hero-logo{font-family:var(--font-d);font-size:3.5rem;font-weight:600;letter-spacing:-0.02em;margin-bottom:.5rem}
+.hero-logo span{color:var(--accent);font-style:italic}
+.hero-sub{font-size:.85rem;color:#9C9888;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1.5rem}
+.hero-desc{font-size:1rem;color:#EDEAE1;max-width:520px;margin:0 auto 2rem;line-height:1.7}
+.hero-cta{display:inline-block;background:var(--accent);color:#fff;padding:.875rem 2.5rem;border-radius:var(--radius);font-family:var(--font-m);font-size:.9rem;font-weight:500;text-decoration:none;transition:opacity .15s}
+.hero-cta:hover{opacity:.9}
+.hero-note{font-size:.7rem;color:#5C5849;margin-top:.75rem}
+.content{max-width:680px;margin:0 auto;padding:3rem 1.5rem 5rem}
+h2{font-family:var(--font-d);font-size:1.6rem;font-weight:600;color:var(--ink);margin:2.5rem 0 1rem}
+p{font-size:.9rem;color:var(--ink2);margin-bottom:.75rem}
+.step-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:1.5rem 0}
+.step-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.step-num{font-family:var(--font-d);font-size:2rem;font-weight:300;color:var(--accent);line-height:1;margin-bottom:.5rem}
+.step-title{font-size:.8rem;font-weight:500;color:var(--ink);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
+.step-text{font-size:.8rem;color:var(--ink2);line-height:1.6}
+.feature-list{list-style:none;margin:1rem 0}
+.feature-list li{font-size:.875rem;color:var(--ink2);padding:9px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+.feature-list li:last-child{border-bottom:none}
+.feat-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.privacy-box{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:var(--radius);padding:1.25rem 1.5rem;margin:1.5rem 0}
+.privacy-box p{margin:0;font-size:.85rem;color:var(--ink2)}
+.privacy-box strong{color:var(--ink)}
+.faq-item{padding:1rem 0;border-bottom:1px solid var(--border)}
+.faq-item:last-child{border-bottom:none}
+.faq-q{font-size:.875rem;font-weight:500;color:var(--ink);margin-bottom:.4rem}
+.faq-a{font-size:.8rem;color:var(--ink2);line-height:1.6}
+.footer{text-align:center;padding:2rem;font-size:.7rem;color:var(--ink3);border-top:1px solid var(--border)}
+.launch-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;margin:1.5rem 0;text-align:center}
+.launch-box p{font-size:.85rem;color:var(--ink2);margin-bottom:1.25rem}
+@media(max-width:600px){.hero{padding:3rem 1.5rem}.hero-logo{font-size:2.5rem}}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="hero-logo">spend<span>.</span></div>
+  <div class="hero-sub">Personal Finance Dashboard</div>
+  <p class="hero-desc">A free, private tool that turns your bank's CSV export into a beautiful spending dashboard — with location tracking, drillable charts, and instant insights. No account needed. Your data never leaves your device.</p>
+  <a href="https://tshivision.github.io/spend/spending-dashboard.html" class="hero-cta" target="_blank">Open the dashboard</a>
+  <p class="hero-note">Free · No account · No server · Works in any browser</p>
+</div>
+<div class="content">
+  <h2>How it works</h2>
+  <div class="step-grid">
+    <div class="step-card"><div class="step-num">1</div><div class="step-title">Export your CSV</div><div class="step-text">Log into your bank's website or app and download your transaction history as a CSV file. Look for "Export", "Download", or "Statement" in your account settings.</div></div>
+    <div class="step-card"><div class="step-num">2</div><div class="step-title">Open the dashboard</div><div class="step-text">Click the button above. The dashboard opens directly in your browser — nothing to install or sign up for.</div></div>
+    <div class="step-card"><div class="step-num">3</div><div class="step-title">Drop it in</div><div class="step-text">Drag your CSV file onto the upload zone, or click to browse. You can drop multiple months at once.</div></div>
+    <div class="step-card"><div class="step-num">4</div><div class="step-title">Explore</div><div class="step-text">Your full spending breakdown loads instantly. Click any chart or category to drill into the transactions behind it.</div></div>
+  </div>
+  <h2>What you'll see</h2>
+  <ul class="feature-list">
+    <li><span class="feat-icon">📊</span><div><strong>Monthly trend</strong> — track how your spending changes month over month. Click any bar to see every transaction.</div></li>
+    <li><span class="feat-icon">🍕</span><div><strong>Category breakdown</strong> — auto-sorted into Food, Travel, Shopping, Subscriptions, Health, and more.</div></li>
+    <li><span class="feat-icon">📍</span><div><strong>Location tracking</strong> — see exactly which cities your money went to, month by month.</div></li>
+    <li><span class="feat-icon">🔍</span><div><strong>Drill into anything</strong> — click any chart, merchant, or category to see the transactions behind it.</div></li>
+    <li><span class="feat-icon">🔄</span><div><strong>Subscription detector</strong> — automatically finds all your recurring charges in one place.</div></li>
+    <li><span class="feat-icon">💡</span><div><strong>Insights and recommendations</strong> — personalised suggestions based on your actual spending patterns.</div></li>
+  </ul>
+  <h2>Your privacy</h2>
+  <div class="privacy-box">
+    <p><strong>100% private. Nothing is uploaded anywhere.</strong><br><br>The dashboard runs entirely in your browser. Your CSV data is processed on your own device and never sent to any server. No account, no tracking, no cookies. You can even use it offline.</p>
+  </div>
+  <h2>FAQ</h2>
+  <div class="faq-item"><div class="faq-q">Where do I find the CSV export in my bank app?</div><div class="faq-a">Every bank is different, but look for "Statements", "Download transactions", or "Export" in your account or card settings — usually under Transaction History. Most major banks support CSV export from their website (desktop works better than mobile for this).</div></div>
+  <div class="faq-item"><div class="faq-q">My CSV doesn't work. What format does it need?</div><div class="faq-a">The dashboard expects 5 columns in this order: date, merchant name, debit amount, credit amount, balance. Most bank exports already follow this layout. If yours doesn't, open the CSV in Excel or Google Sheets and reorder the columns.</div></div>
+  <div class="faq-item"><div class="faq-q">Can I upload multiple months at once?</div><div class="faq-a">Yes — just drop multiple CSV files at the same time. The dashboard merges and deduplicates everything automatically.</div></div>
+  <div class="faq-item"><div class="faq-q">Does it work with any currency?</div><div class="faq-a">Yes. Amounts display exactly as they appear in your CSV — just make sure all your files use the same currency for accurate totals.</div></div>
+  <div class="faq-item"><div class="faq-q">Will my data be saved for next time?</div><div class="faq-a">No — each session starts fresh. Just re-upload your CSV when you want to use it again. Think of it like a calculator: you bring the numbers, it does the work.</div></div>
+  <h2>Ready to try it?</h2>
+  <div class="launch-box">
+    <p>Open the dashboard in your browser — free, instant, no sign-up.</p>
+    <a href="https://tshivision.github.io/spend/spending-dashboard.html" class="hero-cta" target="_blank">Open spend. dashboard</a>
+  </div>
+  <p style="font-size:.75rem;color:var(--ink3);text-align:center;margin-top:1.5rem">Built with Claude AI · Free forever · No account required</p>
+</div>
+<div class="footer">spend. · Personal Finance Dashboard · tshivision.github.io/spend</div>
+</body>
+</html>
