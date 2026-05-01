@@ -41,6 +41,26 @@ body{font-family:var(--font-m);background:var(--bg);color:var(--ink);min-height:
 .file-pill .dot{width:6px;height:6px;background:var(--green);border-radius:50%}
 .analyze-btn{margin-top:1.5rem;width:100%;max-width:520px;padding:.875rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-family:var(--font-m);font-size:.875rem;font-weight:500;cursor:pointer;transition:opacity .15s;display:none}
 .analyze-btn:hover{opacity:.9}
+.or-divider{margin:1rem 0 .75rem;font-size:10px;color:var(--ink3);letter-spacing:.18em;text-transform:uppercase;display:flex;align-items:center;gap:10px;width:100%;max-width:520px}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.sample-btn{width:100%;max-width:520px;padding:.75rem;background:transparent;color:var(--ink2);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font-m);font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.sample-btn:hover{border-color:var(--accent);color:var(--accent);background:#FEF9F5}
+.sample-btn .play{font-size:.65rem;color:var(--accent)}
+.remix-link{margin-top:1rem;font-size:.75rem;color:var(--ink3);text-decoration:none;display:flex;align-items:center;gap:5px;cursor:pointer;border:none;background:none;font-family:var(--font-m)}
+.remix-link:hover{color:var(--accent)}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+#remixModal{display:none;position:fixed;inset:0;z-index:600;align-items:center;justify-content:center;padding:1.5rem;background:rgba(28,26,20,.55);backdrop-filter:blur(6px)}
+#remixModal.show{display:flex}
+.remix-card{background:var(--card);border-radius:var(--radius);max-width:560px;width:100%;padding:2rem;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto}
+.remix-title{font-family:var(--font-d);font-size:1.5rem;font-weight:600;margin-bottom:.5rem}
+.remix-sub{font-size:.8rem;color:var(--ink2);margin-bottom:1.5rem;line-height:1.5}
+.remix-step{display:flex;gap:12px;margin-bottom:1rem;align-items:flex-start}
+.remix-num{flex-shrink:0;width:24px;height:24px;background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+.remix-step-text{font-size:.8rem;line-height:1.55;color:var(--ink)}
+.remix-prompt{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:.875rem;font-family:var(--font-m);font-size:.7rem;line-height:1.5;color:var(--ink);white-space:pre-wrap;margin:.5rem 0;position:relative}
+.remix-copy{position:absolute;top:6px;right:6px;font-size:10px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--ink2);cursor:pointer}
+.remix-copy:hover{border-color:var(--accent);color:var(--accent)}
+.remix-close{margin-top:1rem;width:100%;padding:.75rem;background:var(--ink);color:var(--bg);border:none;border-radius:var(--radius);font-family:var(--font-m);font-size:.8rem;cursor:pointer}
 .upload-note{margin-top:1.25rem;font-size:.7rem;color:var(--ink3);text-align:center;max-width:400px;line-height:1.6}
 .feats{margin-top:2.5rem;display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
 .feat{font-size:11px;color:var(--ink3);display:flex;align-items:center;gap:6px}
@@ -235,10 +255,13 @@ canvas{cursor:pointer}
     <div class="file-list" id="fileList"></div>
   </div>
   <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">Analyse my spending →</button>
+  <div class="or-divider">or see how it looks first</div>
+  <button class="sample-btn" onclick="loadSampleData()"><span class="play">▶</span> Try it with sample data</button>
   <p class="upload-note">Everything runs in your browser — no data is ever uploaded to any server. Share this HTML file with friends.</p>
   <a href="https://tshivision.github.io/spend/how-to-use.html" target="_blank" style="margin-top:.75rem;font-size:.75rem;color:var(--ink3);text-decoration:none;display:flex;align-items:center;gap:5px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--ink3)'">
     <span>📖</span> Not sure how to export your bank CSV? See the guide →
   </a>
+  <button class="remix-link" onclick="openRemix()"><span>✦</span> Want to customize this? Remix it in Claude →</button>
   <div class="feats">
     <div class="feat"><div class="feat-i">🔒</div>100% private</div>
     <div class="feat"><div class="feat-i">📍</div>Location tracking</div>
@@ -251,7 +274,10 @@ canvas{cursor:pointer}
 <div id="dashboard">
   <div class="topbar">
     <div class="topbar-logo">spend<span>.</span></div>
-    <button class="btn-sm" onclick="resetToUpload()">+ Upload new CSVs</button>
+    <div class="topbar-actions">
+      <button class="btn-sm" onclick="openRemix()">✦ Remix in Claude</button>
+      <button class="btn-sm" onclick="resetToUpload()">+ Upload new CSVs</button>
+    </div>
   </div>
   <div class="main-tabs">
     <button class="main-tab active" onclick="switchTab('overview')">Overview</button>
@@ -341,6 +367,35 @@ canvas{cursor:pointer}
     </div>
     <div class="drill-summary" id="drillSummary"></div>
     <div class="drill-body" id="drillBody"></div>
+  </div>
+</div>
+
+<!-- Remix in Claude modal -->
+<div id="remixModal" onclick="if(event.target.id==='remixModal')closeRemix()">
+  <div class="remix-card">
+    <div class="remix-title">Make this <em style="color:var(--accent)">your</em> dashboard</div>
+    <div class="remix-sub">This whole thing is one HTML file built with Claude. You can fork it, add the metrics you actually care about, and rebuild it in minutes — no coding.</div>
+
+    <div class="remix-step">
+      <div class="remix-num">1</div>
+      <div class="remix-step-text">Save this page to your computer (<strong>⌘S</strong> / <strong>Ctrl+S</strong>) so you have the HTML file.</div>
+    </div>
+    <div class="remix-step">
+      <div class="remix-num">2</div>
+      <div class="remix-step-text">Open <a href="https://claude.ai" target="_blank" style="color:var(--accent)">claude.ai</a>, start a new chat, and upload the HTML file.</div>
+    </div>
+    <div class="remix-step">
+      <div class="remix-num">3</div>
+      <div class="remix-step-text">Paste this prompt to get started — change the part in [brackets] to whatever you want:
+        <div class="remix-prompt" id="remixPrompt"><button class="remix-copy" onclick="copyRemix()">Copy</button>This is a personal spending dashboard built as a single HTML file. I want you to add [a savings rate KPI that compares my spending to a monthly income I'll set]. Keep the existing design system, fonts, and color palette. Return the full updated HTML file.</div>
+      </div>
+    </div>
+    <div class="remix-step">
+      <div class="remix-num">4</div>
+      <div class="remix-step-text">Claude returns a new HTML file. Save it, open it in your browser — done. Your version, your metrics.</div>
+    </div>
+
+    <button class="remix-close" onclick="closeRemix()">Got it</button>
   </div>
 </div>
 
@@ -717,6 +772,121 @@ async function runAnalysis(){
     document.getElementById('uploadScreen').style.display='none';
     document.getElementById('dashboard').style.display='block';
   } finally { document.getElementById('loadingOverlay').style.display='none' }
+}
+
+// ─── SAMPLE DATA (so first-time visitors see the dashboard immediately) ───
+var SAMPLE_CSV=`01/03/2026,SUKHUMVIT 49 STARBUCKS,4.50,
+01/04/2026,GRAB BANGKOK,7.80,
+01/05/2026,EMQUARTIER GOURMET MARKET,42.30,
+01/06/2026,UNREAL GYM BKK,38.00,
+01/07/2026,BUMP COFFEE EKAMAI,5.20,
+01/08/2026,NETFLIX,15.99,
+01/09/2026,KENSHIN SUKHUMVIT,67.00,
+01/10/2026,MUJI-KLCC,67.50,
+01/11/2026,MFV BY YONG KEE,28.00,
+01/12/2026,FOUR SEASONS KL,180.00,
+01/13/2026,KLIA AIRPORT LOUNGE,28.00,
+01/14/2026,GRAB BANGKOK,9.20,
+01/15/2026,THAIPIOKA THONGLOR,18.50,
+01/16/2026,SP THE WORKOUT,45.00,
+01/18/2026,LET'S RELAX SUKHUMVIT,42.00,
+01/19/2026,SPOTIFY,9.99,
+01/20/2026,EMPORIUM SHOPPING,156.00,
+01/22/2026,BUMP COFFEE EKAMAI,5.20,
+01/24/2026,KENSHIN SUKHUMVIT,72.00,
+01/26/2026,GOURMET MARKET BANGKOK,68.30,
+01/28/2026,RABBIT HOLE BANGKOK,42.00,
+01/30/2026,RADISSON BLU PLAZA BANGKOK,210.00,
+01/31/2026,SOMPONG THAI BANGKOK,24.00,
+02/02/2026,EKAMAI BUMP COFFEE,4.80,
+02/03/2026,GRAB BANGKOK,8.40,
+02/04/2026,SP THE WORKOUT,45.00,
+02/05/2026,SUSHIRO GH (TH),32.00,
+02/06/2026,EMQUARTIER STARBUCKS,5.80,
+02/08/2026,SCOOT SINGAPORE,180.00,
+02/09/2026,RASAPURA MASTERS,18.50,
+02/10/2026,MBS HOTEL SINGAPORE,380.00,
+02/11/2026,CAFE NESUTO MBS,12.40,
+02/12/2026,SINGAPORE GRAB,22.00,
+02/13/2026,SINGAPORE TAXI,28.00,
+02/14/2026,EMSPHERE DINNER,85.00,
+02/16/2026,SPOTIFY,9.99,
+02/17/2026,UNREAL GYM BKK,38.00,
+02/19/2026,GOURMET MARKET BANGKOK,72.30,
+02/20/2026,MARRIOTT EXECUTIVE BANGKOK,250.00,
+02/22/2026,TIGER MASSAGE EKKAMAI,28.00,
+02/24/2026,EMQUARTIER STARBUCKS,5.80,
+02/26/2026,KENSHIN SUKHUMVIT,68.00,
+02/27/2026,GRAB BANGKOK,7.40,
+02/28/2026,NETFLIX,15.99,
+03/02/2026,BUMP COFFEE THONGLOR,5.50,
+03/03/2026,GRAB BANGKOK,7.80,
+03/05/2026,UNREAL SUKHUMVIT,38.00,
+03/06/2026,KENSHIN ITALIAN,82.00,
+03/08/2026,SCOOT TO BALI,180.00,
+03/09/2026,ALCHEMY CANGGU,15.40,
+03/10/2026,MOTION FITNESS BALI,22.00,
+03/11/2026,LUNA BEACH CLUB,68.00,
+03/12/2026,WARUNG LOCAL CANGGU,8.50,
+03/13/2026,ELITEFITBALI,28.00,
+03/14/2026,MIEL COFFEE CANGGU,4.20,
+03/15/2026,MAYA SANUR HOTEL,320.00,
+03/16/2026,SWAY BALI,42.00,
+03/17/2026,FINNS BEACH CLUB,72.00,
+03/19/2026,GRAB BANGKOK,9.40,
+03/21/2026,EMQUARTIER MUJI,68.00,
+03/23/2026,SOMPONG THAI BANGKOK,24.00,
+03/25/2026,NETFLIX,15.99,
+03/26/2026,RABBIT HOLE BANGKOK,38.00,
+03/28/2026,GOURMET MARKET BANGKOK,68.50,
+03/30/2026,LET'S RELAX SUKHUMVIT,42.00,
+04/02/2026,SUKHUMVIT 49 STARBUCKS,4.80,
+04/03/2026,UNREAL GYM BKK,38.00,
+04/05/2026,EMSPHERE DINNER,72.00,
+04/07/2026,KOREAN AIR TICKET,520.00,
+04/09/2026,STARBUCKSKOREA,6.20,
+04/10/2026,HITKEOPI,8.50,
+04/11/2026,JANG WON KOREAN BBQ,52.00,
+04/12/2026,GS25 SINSA,12.00,
+04/13/2026,TOSOKCHON KOREA,28.00,
+04/14/2026,CHEONGDAM CAFE,7.50,
+04/15/2026,ICOVOX COFFEE,5.20,
+04/16/2026,FUNKY TOWN SEOUL,42.00,
+04/17/2026,SHINSEGAE,180.00,
+04/19/2026,GRAB BANGKOK,8.40,
+04/21/2026,UNREAL SUKHUMVIT,38.00,
+04/23/2026,EMQUARTIER STARBUCKS,5.80,
+04/25/2026,SPOTIFY,9.99,
+04/27/2026,KENSHIN SUKHUMVIT,72.00,
+04/29/2026,LET'S RELAX SPA,42.00,
+04/30/2026,GOURMET MARKET BANGKOK,68.30,`;
+
+async function loadSampleData(){
+  document.getElementById('loadingOverlay').style.display='flex';
+  await new Promise(function(r){setTimeout(r,50)});
+  try{
+    var blob=new Blob([SAMPLE_CSV],{type:'text/csv'});
+    var fakeFile=new File([blob],'sample-data.csv',{type:'text/csv'});
+    var rows=await parseCSV(fakeFile);
+    TX=dedup(rows);
+    TX.sort(function(a,b){return a.date-b.date});
+    ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
+    build();
+    document.getElementById('uploadScreen').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+  } finally { document.getElementById('loadingOverlay').style.display='none' }
+}
+
+// ─── REMIX MODAL ─────────────────────────────────────────────────────────
+function openRemix(){document.getElementById('remixModal').classList.add('show')}
+function closeRemix(){document.getElementById('remixModal').classList.remove('show')}
+function copyRemix(){
+  var prompt=document.getElementById('remixPrompt').textContent.replace('Copy','').trim();
+  navigator.clipboard.writeText(prompt).then(function(){
+    var btn=document.querySelector('.remix-copy');
+    var orig=btn.textContent;btn.textContent='✓ Copied';
+    setTimeout(function(){btn.textContent=orig},1500);
+  });
 }
 function resetToUpload(){
   document.getElementById('dashboard').style.display='none';
