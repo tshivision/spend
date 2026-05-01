@@ -236,6 +236,9 @@ canvas{cursor:pointer}
   </div>
   <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">Analyse my spending →</button>
   <p class="upload-note">Everything runs in your browser — no data is ever uploaded to any server. Share this HTML file with friends.</p>
+  <a href="https://tshivision.github.io/spend/how-to-use.html" target="_blank" style="margin-top:.75rem;font-size:.75rem;color:var(--ink3);text-decoration:none;display:flex;align-items:center;gap:5px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--ink3)'">
+    <span>📖</span> Not sure how to export your bank CSV? See the guide →
+  </a>
   <div class="feats">
     <div class="feat"><div class="feat-i">🔒</div>100% private</div>
     <div class="feat"><div class="feat-i">📍</div>Location tracking</div>
@@ -443,24 +446,142 @@ function handleFiles(files){
 // ─── DATA PROCESSING ─────────────────────────────────────────────────────
 function normM(m){
   var mu=m.toUpperCase().trim();
+  // ── Global platforms ──
   if(mu.includes('GRAB')) return 'Grab';
   if(mu.includes('SPOTIFY')) return 'Spotify';
   if(mu.includes('NETFLIX')) return 'Netflix';
-  if(mu.includes('APPLE.COM')) return 'Apple';
+  if(mu.includes('APPLE.COM')||mu.includes('APPLE STORE')||mu.includes('ITUNES')) return 'Apple';
   if(mu.includes('OPENAI')||mu.includes('CHATGPT')) return 'OpenAI ChatGPT';
   if(mu.includes('GOOGLE')||mu.includes('YOUTUBE')) return 'Google / YouTube';
   if(mu.includes('UBER')) return 'Uber';
+  if(mu.includes('AMAZON')&&!mu.includes('PRIME VIDEO')) return 'Amazon';
+  if(mu.includes('AMAZON PRIME')||mu.includes('PRIME VIDEO')) return 'Amazon Prime';
+  if(mu.includes('PAYPAL')) return 'PayPal';
+  if(mu.includes('AIRBNB')) return 'Airbnb';
   if(mu==='TRIP.COM'||mu.includes('TRIP.COM')) return 'Trip.com';
   if(mu.includes('AGODA')) return 'Agoda';
   if(mu.includes('EXPEDIA')) return 'Expedia';
   if(mu.includes('BOOKING.COM')||mu.includes('FLIGHTS ON BOOKING')) return 'Booking.com';
+  // ── Coffee global ──
   if(mu.includes('STARBUCKS')) return 'Starbucks';
+  if(mu.includes('TIM HORTON')) return 'Tim Hortons';
   if(mu.includes('MIEL COFFEE')) return 'Miel Coffee';
+  if(mu.includes('DUNKIN')) return 'Dunkin';
+  if(mu.includes('LUCKIN')) return 'Luckin Coffee';
+  // ── Fast food global ──
   if(mu.includes('7-ELEVEN')||mu.includes('7 11')||mu.includes('SEVEN-ELEVEN')||mu.includes('ALP*7 ELEVEN')) return '7-Eleven';
   if(mu.includes('KFC')) return 'KFC';
   if(mu.includes('BURGER KING')) return 'Burger King';
   if(mu.includes('FIVE GUYS')) return 'Five Guys';
-  if(mu.startsWith('MCD-')||mu.includes('MCDONALDS')) return "McDonald's";
+  if(mu.includes('SUBWAY')) return 'Subway';
+  if(mu.includes('DOMINO')) return "Domino's";
+  if(mu.includes('PIZZA HUT')) return 'Pizza Hut';
+  if(mu.includes('CHIPOTLE')) return 'Chipotle';
+  if(mu.includes('CHICK-FIL-A')||mu.includes('CHICKFILA')) return 'Chick-fil-A';
+  if(mu.includes('TACO BELL')) return 'Taco Bell';
+  if(mu.includes("WENDY'S")||mu.includes('WENDYS')) return "Wendy's";
+  if(mu.includes('POPEYES')) return 'Popeyes';
+  if(mu.includes('PANDA EXPRESS')) return 'Panda Express';
+  if(mu.startsWith('MCD-')||mu.includes('MCDONALDS')||mu.includes("MCDONALD'S")) return "McDonald's";
+  if(mu.includes('HARVEY')&&mu.includes('S')) return "Harvey's";
+  if(mu.includes('A&W')) return 'A&W';
+  if(mu.includes('SWISS CHALET')) return 'Swiss Chalet';
+  if(mu.includes('BOSTON PIZZA')) return 'Boston Pizza';
+  if(mu.includes('MOXIE')) return "Moxie's";
+  // ── Canada groceries / retail ──
+  if(mu.includes('LOBLAWS')||mu.includes('LOBLAW')) return 'Loblaws';
+  if(mu.includes('NO FRILLS')) return 'No Frills';
+  if(mu.includes('METRO INC')||mu.includes('METRO ONTARIO')||mu.includes('METRO QUEBEC')) return 'Metro';
+  if(mu.includes('SOBEYS')) return 'Sobeys';
+  if(mu.includes('SAFEWAY')) return 'Safeway';
+  if(mu.includes('REAL CANADIAN SUPERSTORE')||mu.includes('SUPERSTORE')) return 'Real Canadian Superstore';
+  if(mu.includes('FOOD BASICS')) return 'Food Basics';
+  if(mu.includes('FRESHCO')) return 'FreshCo';
+  if(mu.includes('WHOLESALE CLUB')) return 'Wholesale Club';
+  if(mu.includes('SHOPPERS DRUG MART')||mu.includes('PHARMAPRIX')) return 'Shoppers Drug Mart';
+  if(mu.includes('CANADIAN TIRE')) return 'Canadian Tire';
+  if(mu.includes('LCBO')) return 'LCBO';
+  if(mu.includes('BEER STORE')) return 'The Beer Store';
+  if(mu.includes('WINNERS')) return 'Winners';
+  if(mu.includes('DOLLARAMA')) return 'Dollarama';
+  if(mu.includes('SPORT CHEK')) return 'Sport Chek';
+  if(mu.includes('REXALL')) return 'Rexall';
+  // ── US groceries / retail ──
+  if(mu.includes('WALMART')) return 'Walmart';
+  if(mu.includes('TARGET')) return 'Target';
+  if(mu.includes('COSTCO')) return 'Costco';
+  if(mu.includes('TRADER JOE')) return "Trader Joe's";
+  if(mu.includes('WHOLE FOODS')) return 'Whole Foods';
+  if(mu.includes('KROGER')) return 'Kroger';
+  if(mu.includes('WALGREENS')) return 'Walgreens';
+  if(mu.includes('CVS')) return 'CVS';
+  if(mu.includes('RITE AID')) return 'Rite Aid';
+  if(mu.includes('HOME DEPOT')) return 'Home Depot';
+  if(mu.includes("LOWE'S")||mu.includes('LOWES')) return "Lowe's";
+  if(mu.includes('BEST BUY')) return 'Best Buy';
+  if(mu.includes('IKEA')) return 'IKEA';
+  if(mu.includes('H&M')) return 'H&M';
+  if(mu.includes('ZARA')) return 'Zara';
+  if(mu.includes('GAP')) return 'Gap';
+  if(mu.includes('OLD NAVY')) return 'Old Navy';
+  if(mu.includes('DOLLAR TREE')) return 'Dollar Tree';
+  if(mu.includes('DOLLAR GENERAL')) return 'Dollar General';
+  // ── China apps / services ──
+  if(mu.includes('MEITUAN')||mu.includes('MEI TUAN')) return 'Meituan';
+  if(mu.includes('DIDI')||mu.includes('DIDICHUXING')) return 'DiDi';
+  if(mu.includes('ALIPAY')) return 'Alipay';
+  if(mu.includes('WECHAT PAY')||mu.includes('WECHATPAY')) return 'WeChat Pay';
+  if(mu.includes('JD.COM')||mu.includes('JINGDONG')) return 'JD.com';
+  if(mu.includes('TAOBAO')) return 'Taobao';
+  if(mu.includes('ELEME')||mu.includes('ELE.ME')) return 'Eleme (Food Delivery)';
+  if(mu.includes('HAIDILAO')) return 'Haidilao';
+  if(mu.includes('NAYUKI')) return 'Nayuki Tea';
+  if(mu.includes('HEYTEA')) return 'HeyTea';
+  if(mu.includes('MANNER')) return 'Manner Coffee';
+  if(mu.includes('COTTI COFFEE')) return 'Cotti Coffee';
+  // ── UK / Europe ──
+  if(mu.includes('TESCO')) return 'Tesco';
+  if(mu.includes('SAINSBURY')) return "Sainsbury's";
+  if(mu.includes('ASDA')) return 'Asda';
+  if(mu.includes('MARKS AND SPENCER')||mu.includes('M&S')) return 'M&S';
+  if(mu.includes('WAITROSE')) return 'Waitrose';
+  if(mu.includes('LIDL')) return 'Lidl';
+  if(mu.includes('ALDI')) return 'Aldi';
+  if(mu.includes('BOOTS')) return 'Boots';
+  if(mu.includes('PRIMARK')) return 'Primark';
+  // ── Australia ──
+  if(mu.includes('WOOLWORTHS')) return 'Woolworths';
+  if(mu.includes('COLES')) return 'Coles';
+  // ── Transport global ──
+  if(mu.includes('LYFT')) return 'Lyft';
+  if(mu.includes('GOJEK')) return 'Gojek';
+  if(mu.includes('LALAMOVE')) return 'Lalamove';
+  if(mu.includes('FOODPANDA')) return 'Foodpanda';
+  if(mu.includes('DOORDASH')) return 'DoorDash';
+  if(mu.includes('GRUBHUB')) return 'GrubHub';
+  if(mu.includes('INSTACART')) return 'Instacart';
+  if(mu.includes('SKIP THE DISHES')||mu.includes('SKIPTHEDISHES')) return 'SkipTheDishes';
+  if(mu.includes('UBER EATS')) return 'Uber Eats';
+  // ── Subscriptions ──
+  if(mu.includes('DISNEY PLUS')||mu.includes('DISNEY+')) return 'Disney+';
+  if(mu.includes('HBO MAX')||mu.includes('MAX.COM')) return 'Max (HBO)';
+  if(mu.includes('HULU')) return 'Hulu';
+  if(mu.includes('PARAMOUNT')) return 'Paramount+';
+  if(mu.includes('DROPBOX')) return 'Dropbox';
+  if(mu.includes('MICROSOFT')||mu.includes('OFFICE 365')||mu.includes('XBOX')) return 'Microsoft';
+  if(mu.includes('ADOBE')) return 'Adobe';
+  if(mu.includes('NOTION')) return 'Notion';
+  if(mu.includes('FIGMA')) return 'Figma';
+  if(mu.includes('CANVA')) return 'Canva';
+  if(mu.includes('CHATGPT')||mu.includes('OPENAI')) return 'OpenAI ChatGPT';
+  if(mu.includes('CLAUDE')||mu.includes('ANTHROPIC')) return 'Claude / Anthropic';
+  if(mu.includes('GITHUB')) return 'GitHub';
+  if(mu.includes('VERCEL')) return 'Vercel';
+  if(mu.includes('DIGITALOCEAN')) return 'DigitalOcean';
+  if(mu.includes('TWILIO')) return 'Twilio';
+  if(mu.includes('ZOOM')) return 'Zoom';
+  if(mu.includes('SLACK')) return 'Slack';
+  // ── Existing Southeast Asia / travel rules ──
   if(mu.includes('VYPRVPN')) return 'VyprVPN';
   if(mu.includes('NYTIMES')) return 'NY Times';
   if(mu.includes('PADDLE.NET')) return 'Paddle.net';
@@ -484,34 +605,70 @@ function normM(m){
 }
 function catTX(merchant){
   var mu=merchant.toUpperCase();
-  if(merchant==='Grab'||merchant==='Uber') return ['Transportation','Ride-hailing'];
-  if(mu.includes('ALP*DIDI')||mu.includes('ALP*TRANSPORTATION')||mu.includes('ALP*NANJING METRO')||mu.includes('WEST JAPAN RAILWAY')||mu.includes('COIN LOCKERS')) return ['Transportation','Transit'];
-  if(mu.includes('SHELL')||mu.includes('PETROL')) return ['Transportation','Fuel'];
-  if(merchant==='Airlines'||mu.includes('HAHN AIR')||mu.includes('JEJU AIR')||mu.includes('AIRWAYS')) return ['Travel','Flights'];
-  if(['Trip.com','Agoda','Expedia','Booking.com','Klook'].includes(merchant)||mu.includes('KEYFLIGHT')) return ['Travel','Booking & Activities'];
-  if(mu.includes('MARRIOTT')||mu.includes('DUSIT')||mu.includes('CENTARA')||mu.includes('RADISSON')||mu.includes('KIMPTON')||mu.includes('FOUR SEASONS')||mu.includes('HOTEL')||mu.includes('RESORT')||mu.includes('OAKWOOD')||mu.includes('STAYBRIDGE')||mu.includes('MAYA SANUR')||mu.includes('ALILA')||mu.includes('ARUNOTEL')||mu.includes('AKARA SKY')) return ['Travel','Accommodation'];
-  var cW=['COFFEE','CAFE','CBTL','TIM HORTON','STARBUCKS','MIEL COFFEE','REVOLVER','SARNIES','SESSION COFFEE'];
+  // ── Transportation ──
+  if(['Grab','Uber','Lyft','DiDi','Gojek'].includes(merchant)) return ['Transportation','Ride-hailing'];
+  if(['DoorDash','Uber Eats','Foodpanda','GrubHub','SkipTheDishes','Instacart','Lalamove','Meituan'].includes(merchant)) return ['Food & Dining','Food Delivery'];
+  if(mu.includes('ALP*DIDI')||mu.includes('ALP*TRANSPORTATION')||mu.includes('ALP*NANJING METRO')||mu.includes('WEST JAPAN RAILWAY')||mu.includes('COIN LOCKERS')||mu.includes('TRANSIT')||mu.includes('PRESTO')||mu.includes('TTC ')||mu.includes('MARTA')||mu.includes('BART ')||mu.includes('METRO CARD')||mu.includes('CLIPPER CARD')||mu.includes('OYSTER')||mu.includes('SUICA')||mu.includes('OCTOPUS CARD')) return ['Transportation','Transit'];
+  if(mu.includes('SHELL')||mu.includes('PETROL')||mu.includes('GASOLINE')||mu.includes('ESSO')||mu.includes('PETRO-CANADA')||mu.includes('PETROCANADA')||mu.includes('CHEVRON')||mu.includes('BP ')||mu.includes('SUNOCO')||mu.includes('CIRCLE K GAS')) return ['Transportation','Fuel'];
+  if(mu.includes('PARKING')||mu.includes('GREENP')||mu.includes('HONK MOBILE')||mu.includes('IMPARK')) return ['Transportation','Parking'];
+  if(mu.includes('CAR RENTAL')||mu.includes('ENTERPRISE')||mu.includes('HERTZ')||mu.includes('AVIS')||mu.includes('BUDGET RENT')) return ['Travel','Car Rental'];
+  // ── Travel ──
+  if(merchant==='Airlines'||mu.includes('HAHN AIR')||mu.includes('JEJU AIR')||mu.includes('AIRWAYS')||mu.includes('AIR CANADA')||mu.includes('WESTJET')||mu.includes('DELTA ')||mu.includes('UNITED AIRLINES')||mu.includes('AMERICAN AIRLINES')||mu.includes('SOUTHWEST')||mu.includes('JETBLUE')||mu.includes('SPIRIT AIR')||mu.includes('AIR ASIA')||mu.includes('LION AIR')||mu.includes('CATHAY')||mu.includes('SINGAPORE AIR')||mu.includes('EMIRATES')||mu.includes('LUFTHANSA')||mu.includes('BRITISH AIRWAYS')) return ['Travel','Flights'];
+  if(['Trip.com','Agoda','Expedia','Booking.com','Klook','Airbnb'].includes(merchant)||mu.includes('KEYFLIGHT')||mu.includes('VRBO')||mu.includes('AIRBNB')) return ['Travel','Booking & Activities'];
+  if(mu.includes('MARRIOTT')||mu.includes('DUSIT')||mu.includes('CENTARA')||mu.includes('RADISSON')||mu.includes('KIMPTON')||mu.includes('FOUR SEASONS')||mu.includes('HILTON')||mu.includes('HYATT')||mu.includes('SHERATON')||mu.includes('WESTIN')||mu.includes('W HOTEL')||mu.includes('IHG')||mu.includes('HOLIDAY INN')||mu.includes('BEST WESTERN')||mu.includes('COMFORT INN')||mu.includes('DAYS INN')||mu.includes('SUPER 8')||mu.includes('NOVOTEL')||mu.includes('IBIS ')||mu.includes('HOTEL')||mu.includes('RESORT')||mu.includes('OAKWOOD')||mu.includes('STAYBRIDGE')||mu.includes('MAYA SANUR')||mu.includes('ALILA')||mu.includes('ARUNOTEL')||mu.includes('AKARA SKY')) return ['Travel','Accommodation'];
+  // ── Coffee ──
+  var cW=['COFFEE','CAFE','CBTL','TIM HORTON','STARBUCKS','MIEL COFFEE','REVOLVER','SARNIES','SESSION COFFEE','DUNKIN','SECOND CUP','TIMOTHY','JAVA','PEET','BLUE BOTTLE','INTELLIGENTSIA','PHILZ','CARIBOU','BIGGBY','DUTCH BROS','LUCKIN','NAYUKI','HEYTEA','MANNER','COTTI','%ARABICA','CAFE AMAZON'];
   if(cW.some(function(w){return mu.includes(w)})) return ['Food & Dining','Coffee & Cafes'];
-  var gW=['FOOD HALL','FUJI SUPER','PEPITOMARKET','MINIMART','CIRCLE K','CK BIMA','CK MONKEY','WARUNG LOCAL','WARUNG VARUNA','7-ELEVEN','SEVEN-ELEVEN','DONKI MALL','ALP*DAIRYSTORES','ORIENTAL GOURMET','GUARDIAN'];
+  // ── Groceries ──
+  var gW=['FOOD HALL','FUJI SUPER','PEPITOMARKET','MINIMART','CIRCLE K','CK BIMA','CK MONKEY','WARUNG LOCAL','WARUNG VARUNA','7-ELEVEN','SEVEN-ELEVEN','DONKI MALL','ALP*DAIRYSTORES','ORIENTAL GOURMET','GUARDIAN',
+    // Canada
+    'LOBLAWS','LOBLAW','NO FRILLS','SOBEYS','SAFEWAY','SUPERSTORE','METRO INC','METRO ONTARIO','FOOD BASICS','FRESHCO','WHOLESALE CLUB','IGA ','PROVIGO','MAXI ',
+    // US
+    'WALMART','KROGER','WHOLE FOODS','TRADER JOE','SAFEWAY','PUBLIX','ALBERTSONS','WINCO','H-E-B','WEGMANS','GIANT FOOD','PIGGLY','FOOD LION','HARRIS TEETER','STOP & SHOP','MARKET BASKET','MEIJER','COSTCO','SAM\'S CLUB','DOLLAR TREE','DOLLAR GENERAL','ALDI ',
+    // China
+    'HEMA FRESH','FRESHIPPO','YONGHUI','RT-MART','CARREFOUR','OLE ','CITY SUPER','BLT MARKET',
+    // UK/Europe/Aus
+    'TESCO','SAINSBURY','ASDA','WAITROSE','LIDL','ALDI ','COLES','WOOLWORTHS','COUNTDOWN'];
   if(gW.some(function(w){return mu.includes(w)})) return ['Food & Dining','Groceries & Convenience'];
-  var dW=['RESTAURANT','RESTO','SUSHI','PIZZA','BURGER','RAMEN','NOODLE','HOT POT','SHABU','GRILL','DINING','KITCHEN','WARUNG','BISTRO','BAR','BAKED','BAKERY','KUB KAO','BEACH HOUSE','LUNA BEACH','FINNS BEACH','MANNAJA','BOONSIRI','MENSHO','KANORI','SUSHIRO','HITORI','IBERRY','MISHKI','ALCHEMY','INKLUSIV','SEAGRASS','SANTANERA','TYGR','BB52','PALM ISLAND','SHADY PIG','THE BARREL','RABBIT HOLE','TRUTH OR DARE','SIAM ORCHID','UPPER HOUSE','BLACK SAND','FIVE GUYS','KFC','BURGER KING','ORANUCH','THONGSMITH','KENSHIN','FASCINO','OKONOMI','BAANKERD','KHAO','GOT','LUSH KITCHEN','RASAPURA','KINKI FINE','PENNY LANE','THE LAWN','GIIN-HOII','CHOW','MAD RONIN','GIGI SUSU','PUDARA','TWO MOODS','VIETNAM BISTRO','JOHNNY ROCKETS','TONYS NEW YORK','DOLPAN','JANG WON','WITCH GIMBAP','MOGGUMUNG','SINSAJUN','HOT POT MAN','THAIPIAOKA','THAIPIOKA','BDAY CELEBRATION','CHON CAFE','BSRC-V.P.K','FIFTY FIFTH','CEH-HO','ALP*RESTAURANTS','ALP*HEQING','ALP*HONGFA','ALP*NANJING','ALP*SHANGHAI','GS 25','GS25','LOTTE GRS','INS LAND','MILK & MADU','MFV BY YONG KEE','TOTOGIN','KINKAKUJI','RAKUTENPAY','SCT-','BT-ONE BANGKOK','SOMPONG','NIRVANA KITCHEN','TOOK LAE DEE','PLEUNPUNG','BOOKMAGOL','HONEY HOUSE','JUICE LAND','HOME OF BEYOND','WORD HUMMUS','DARK-EM','SWEET PISTA','GOURMET MARKET','EMPORIUM','MAVAMMY','BARTELS','SUMMER LANE','BOMBMM','MARLY','OSCA','ZIA TINA','PAPA LEE','TIMES BEACH','GOOD ROOTS','HONEYFUL'];
+  // ── Dining / Restaurants ──
+  var dW=['RESTAURANT','RESTO','SUSHI','PIZZA','BURGER','RAMEN','NOODLE','HOT POT','SHABU','GRILL','DINING','KITCHEN','WARUNG','BISTRO','BAR ','BAKED','BAKERY',
+    'KUB KAO','BEACH HOUSE','LUNA BEACH','FINNS BEACH','MANNAJA','BOONSIRI','MENSHO','KANORI','SUSHIRO','HITORI','IBERRY','MISHKI','ALCHEMY','INKLUSIV','SEAGRASS','SANTANERA','TYGR','BB52','PALM ISLAND','SHADY PIG','THE BARREL','RABBIT HOLE','TRUTH OR DARE','SIAM ORCHID','UPPER HOUSE','BLACK SAND',
+    'FIVE GUYS','KFC','BURGER KING','SUBWAY','CHIPOTLE','CHICK-FIL-A','CHICKFILA','TACO BELL','WENDYS','POPEYES','PANDA EXPRESS','IN-N-OUT','SHAKE SHACK','FIVE GUYS','PANERA','OLIVE GARDEN','RED LOBSTER','APPLEBEES',"DENNY'S",'IHOP ','CRACKER BARREL','HOOTERS','BUFFALO WILD WINGS','CHILIS ','OUTBACK','TEXAS ROADHOUSE','LONGHORN',
+    'ORANUCH','THONGSMITH','KENSHIN','FASCINO','OKONOMI','BAANKERD','KHAO','GOT','LUSH KITCHEN','RASAPURA','KINKI FINE','PENNY LANE','THE LAWN','GIIN-HOII','CHOW','MAD RONIN','GIGI SUSU','PUDARA','TWO MOODS','VIETNAM BISTRO','JOHNNY ROCKETS','TONYS NEW YORK','DOLPAN','JANG WON','WITCH GIMBAP','MOGGUMUNG','SINSAJUN','HOT POT MAN','THAIPIAOKA','THAIPIOKA','BDAY CELEBRATION','CHON CAFE','BSRC-V.P.K','FIFTY FIFTH','CEH-HO',
+    'ALP*RESTAURANTS','ALP*HEQING','ALP*HONGFA','ALP*NANJING','ALP*SHANGHAI','GS 25','GS25','LOTTE GRS','INS LAND','MILK & MADU','MFV BY YONG KEE','TOTOGIN','KINKAKUJI','RAKUTENPAY','SCT-','BT-ONE BANGKOK','SOMPONG','NIRVANA KITCHEN','TOOK LAE DEE','PLEUNPUNG','BOOKMAGOL','HONEY HOUSE','JUICE LAND','HOME OF BEYOND','WORD HUMMUS','DARK-EM','SWEET PISTA','GOURMET MARKET','EMPORIUM','MAVAMMY','BARTELS','SUMMER LANE','BOMBMM','MARLY','OSCA','ZIA TINA','PAPA LEE','TIMES BEACH','GOOD ROOTS','HONEYFUL',
+    // China dining
+    'HAIDILAO','NAYUKI','HEYTEA','MANNER','COTTI','XIBEI','GREEN TEA REST','DADONG','XIAOLONGKAN',
+    // Harvey's, A&W Canada
+    'HARVEYS','A&W ','SWISS CHALET','BOSTON PIZZA','MOXIE','EARLS ','MILESTONE','JOEY '];
   if(dW.some(function(w){return mu.includes(w)})) return ['Food & Dining','Restaurants & Bars'];
-  var sM=['Spotify','Netflix','OpenAI ChatGPT','Google / YouTube','VyprVPN','NY Times','Bolt.new','UX Pilot AI','Uxfolio','Apple'];
-  if(sM.includes(merchant)||mu.includes('PADDLE.NET')||mu.includes('LEANN')||mu.includes('MACPAW')||mu.includes('ADBLCK')) return ['Subscriptions','Digital Services'];
-  var gyW=['GYM','FITNESS','YOGA','WORKOUT','ELITE FIT','UNREAL GYM','NIRVANA STRENGTH','UDARA YOGA','BEAM*UNREAL','SP THE WORKOUT','ASA SPORTS','XDT*PT NIRVANA','XDT*PT UDARA','LPE*UNREAL','DECATHLON'];
+  // ── Subscriptions / Software ──
+  var sM=['Spotify','Netflix','OpenAI ChatGPT','Google / YouTube','VyprVPN','NY Times','Bolt.new','UX Pilot AI','Uxfolio','Apple','Amazon Prime','Disney+','Max (HBO)','Hulu','Paramount+','Microsoft','Adobe','Notion','Figma','Canva','Dropbox','GitHub','Vercel','Zoom','Slack','Claude / Anthropic'];
+  if(sM.includes(merchant)||mu.includes('PADDLE.NET')||mu.includes('LEANN')||mu.includes('MACPAW')||mu.includes('ADBLCK')||mu.includes('SETAPP')||mu.includes('1PASSWORD')||mu.includes('LASTPASS')||mu.includes('NORDVPN')||mu.includes('EXPRESSVPN')||mu.includes('DUOLINGO')||mu.includes('HEADSPACE')||mu.includes('CALM APP')||mu.includes('GRAMMARLY')) return ['Subscriptions','Digital Services'];
+  // ── Health & Fitness ──
+  var gyW=['GYM','FITNESS','YOGA','WORKOUT','ELITE FIT','UNREAL GYM','NIRVANA STRENGTH','UDARA YOGA','BEAM*UNREAL','SP THE WORKOUT','ASA SPORTS','XDT*PT NIRVANA','XDT*PT UDARA','LPE*UNREAL','DECATHLON','EQUINOX','PLANET FITNESS','24 HOUR FITNESS','LA FITNESS','ANYTIME FITNESS','CRUNCH FITNESS','ORANGETHEORY','F45 ','BARRY\'S','SOULCYCLE','PELOTON','GOODLIFE','YMCA','GOODLIFE FITNESS','GOODLIFE HEALTH'];
   if(gyW.some(function(w){return mu.includes(w)})||merchant==='Decathlon') return ['Health & Fitness','Gym & Sports'];
   var spW=["LET'S RELAX",'LETS RELAX','MASSAGE','SPA ','WELLNESS','YUMOTO','ONSEN RETREAT','FAJAR BALI','SWAY BALI','MAJA SPA','OMANG OMANG'];
   if(spW.some(function(w){return mu.includes(w)})) return ['Health & Fitness','Spa & Wellness'];
-  var mdW=['MEDICAL','PHARMACY','HYDRO MEDICAL','BERLIN PHARMACY','CLINIC','HOSPITAL'];
-  if(mdW.some(function(w){return mu.includes(w)})) return ['Health & Fitness','Medical'];
-  if(merchant==='Wellcare Insurance'||merchant==='Easy Health'||mu.includes('INSURANCE')||mu.includes('WELLCARE')||mu.includes('EASY HEALTH')) return ['Insurance','Health Insurance'];
-  if(mu.includes('IPHONE')||mu.includes('ISTUDIO')||mu.includes('SAMSUNG')) return ['Shopping','Electronics'];
-  if(mu.includes('KICKS')||mu.includes('SHOECREAM')||mu.includes('TEMU')||mu.includes('POP MART')||mu.includes('MUJI')||mu.includes('EMSPHERE')||mu.includes('P O-MBK')||mu.includes('WHSMITH')||mu.includes('KYOTO PORTA')||mu.includes('KLIA')||merchant==='Temu'||mu.includes('SHINSEGAE')||mu.includes('EVP*SALONE')) return ['Shopping','Retail & Other'];
-  if(mu.includes('BARBER')||mu.includes('HEADBANG')||mu.includes('ESQUIRE BARBER')||mu.includes('HAIRCUT')||mu.includes('SALON')) return ['Personal Care','Grooming & Beauty'];
-  if(mu.includes('MEGATIX')||mu.includes('CONCERT')||mu.includes('CINEMA')||mu.includes('PLAYSCAPE')||mu.includes('ALP*GAMEARCADES')) return ['Entertainment','Events'];
-  if(mu.includes('TRUE MONEY')||mu.includes('TRUE DIGITAL')||mu.includes('TELCO')||mu.includes('ELECTRIC')) return ['Utilities','Bills & Services'];
-  if(mu.includes('SHARING EXCESS')||mu.includes('DONATION')) return ['Miscellaneous','Charity'];
-  if(mu.includes('TD PAYMENT')||mu.includes('BELL CANADA')||mu.includes('WWW.2C2P')||mu.includes('PT FINNET')) return ['Miscellaneous','Fees'];
+  var mdW=['MEDICAL','PHARMACY','HYDRO MEDICAL','BERLIN PHARMACY','CLINIC','HOSPITAL','SHOPPERS DRUG','REXALL','WALGREENS','CVS PHARMACY','RITE AID','BOOTS PHARMACY','DENTAL','OPTOMETRY','PHYSIO','CHIROPRACTIC'];
+  if(mdW.some(function(w){return mu.includes(w)})) return ['Health & Fitness','Medical & Pharmacy'];
+  // ── Insurance ──
+  if(merchant==='Wellcare Insurance'||merchant==='Easy Health'||mu.includes('INSURANCE')||mu.includes('WELLCARE')||mu.includes('EASY HEALTH')||mu.includes('SUNLIFE')||mu.includes('MANULIFE')||mu.includes('INTACT ')||mu.includes('ALLSTATE')||mu.includes('STATE FARM')||mu.includes('GEICO')||mu.includes('PROGRESSIVE INS')) return ['Insurance','Health Insurance'];
+  // ── Shopping ──
+  if(mu.includes('IPHONE')||mu.includes('ISTUDIO')||mu.includes('SAMSUNG')||mu.includes('BEST BUY')||mu.includes('STAPLES')||mu.includes('OFFICE DEPOT')||mu.includes('MICROCENTER')||mu.includes('NEWEGG')||mu.includes('BHPHOTOVIDEO')) return ['Shopping','Electronics'];
+  if(mu.includes('AMAZON')&&!mu.includes('PRIME VIDEO')&&!mu.includes('AMAZON WEB')) return ['Shopping','Online Shopping'];
+  if(mu.includes('EBAY')||mu.includes('ETSY')||mu.includes('ALIEXPRESS')||mu.includes('WISH.COM')) return ['Shopping','Online Shopping'];
+  if(mu.includes('KICKS')||mu.includes('SHOECREAM')||mu.includes('TEMU')||mu.includes('POP MART')||mu.includes('MUJI')||mu.includes('EMSPHERE')||mu.includes('P O-MBK')||mu.includes('WHSMITH')||mu.includes('KYOTO PORTA')||mu.includes('KLIA')||merchant==='Temu'||mu.includes('SHINSEGAE')||mu.includes('IKEA')||mu.includes('H&M')||mu.includes('ZARA')||mu.includes('GAP ')||mu.includes('OLD NAVY')||mu.includes('WINNERS')||mu.includes('DOLLARAMA')||mu.includes('SPORT CHEK')||mu.includes('PRIMARK')||mu.includes('TARGET ')) return ['Shopping','Retail & Other'];
+  // ── Personal Care ──
+  if(mu.includes('BARBER')||mu.includes('HEADBANG')||mu.includes('ESQUIRE BARBER')||mu.includes('HAIRCUT')||mu.includes('SALON')||mu.includes('SEPHORA')||mu.includes('ULTA ')||mu.includes('SHOPPERS BEAUTY')||mu.includes('SUPERCUTS')||mu.includes('GREAT CLIPS')) return ['Personal Care','Grooming & Beauty'];
+  // ── Entertainment ──
+  if(mu.includes('MEGATIX')||mu.includes('CONCERT')||mu.includes('CINEMA')||mu.includes('MOVIE')||mu.includes('PLAYSCAPE')||mu.includes('ALP*GAMEARCADES')||mu.includes('AMC ')||mu.includes('REGAL ')||mu.includes('CINEPLEX')||mu.includes('LANDMARK CINEMA')||mu.includes('STEAM ')||mu.includes('PLAYSTATION')||mu.includes('NINTENDO')||mu.includes('XBOX ')||mu.includes('TICKETMASTER')||mu.includes('EVENTBRITE')||mu.includes('STUBHUB')) return ['Entertainment','Events & Activities'];
+  // ── Utilities / Bills ──
+  if(mu.includes('TRUE MONEY')||mu.includes('TRUE DIGITAL')||mu.includes('TELCO')||mu.includes('ELECTRIC')||mu.includes('HYDRO ')||mu.includes('ENBRIDGE')||mu.includes('ROGERS ')||mu.includes('BELL CANADA')||mu.includes('TELUS')||mu.includes('SHAW ')||mu.includes('FIDO ')||mu.includes('VIRGIN MOBILE')||mu.includes('FREEDOM MOBILE')||mu.includes('SPEAKOUT')||mu.includes('AT&T')||mu.includes('T-MOBILE')||mu.includes('VERIZON')||mu.includes('SPRINT ')||mu.includes('COMCAST')||mu.includes('COX COMM')||mu.includes('XFINITY')||mu.includes('SPECTRUM ')) return ['Utilities','Bills & Services'];
+  // ── Financial ──
+  if(mu.includes('INTERAC')||mu.includes('E-TRANSFER')||mu.includes('NSF FEE')||mu.includes('SERVICE FEE')||mu.includes('MONTHLY FEE')||mu.includes('ACCOUNT FEE')||mu.includes('WIRE FEE')||mu.includes('EXCHANGE FEE')) return ['Miscellaneous','Bank Fees'];
+  // ── Misc ──
+  if(mu.includes('SHARING EXCESS')||mu.includes('DONATION')||mu.includes('CHARITY')||mu.includes('GOFUNDME')||mu.includes('PATREON')) return ['Miscellaneous','Charity & Donations'];
+  if(mu.includes('TD PAYMENT')||mu.includes('BELL CANADA')||mu.includes('WWW.2C2P')||mu.includes('PT FINNET')||mu.includes('PAYMENT FEE')) return ['Miscellaneous','Fees'];
   return ['Miscellaneous','Other'];
 }
 
