@@ -255,10 +255,15 @@ canvas{cursor:pointer}
     <div class="drop-sub">or <strong onclick="document.getElementById('fileInput').click()">browse to upload</strong></div>
     <div class="file-list" id="fileList"></div>
   </div>
+  <div id="savedBanner" style="display:none;margin:0 0 1rem;font-size:.8rem;color:var(--ink2);text-align:center">
+    <span id="savedBannerText"></span>
+    <button class="btn-sm" style="margin-left:8px" onclick="openSaved()">Open dashboard</button>
+    <button class="btn-sm" onclick="clearSaved()">Clear</button>
+  </div>
   <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">Analyse my spending →</button>
   <div class="or-divider">or see how it looks first</div>
   <button class="sample-btn" onclick="loadSampleData()"><span class="play">▶</span> Try it with sample data</button>
-  <p class="upload-note">Everything runs in your browser — no data is ever uploaded to any server. Your transactions never leave this page. Share the link with friends.</p>
+  <p class="upload-note">Everything runs in your browser — no data is ever uploaded to any server. Your transactions are remembered only on this device (clear them anytime). Share the link with friends.</p>
   <a href="https://tshivision.github.io/spend/how-to-use.html" target="_blank" style="margin-top:.75rem;font-size:.75rem;color:var(--ink3);text-decoration:none;display:flex;align-items:center;gap:5px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--ink3)'">
     <span>📖</span> Not sure how to export your bank CSV? See the guide →
   </a>
@@ -277,7 +282,11 @@ canvas{cursor:pointer}
     <div class="topbar-logo">spend<span>.</span></div>
     <div class="topbar-actions">
       <button class="btn-sm" onclick="openRemix()">✦ Remix in Claude</button>
-      <button class="btn-sm" onclick="resetToUpload()">+ Upload new CSVs</button>
+      <button class="btn-sm" onclick="resetToUpload()">+ Add CSVs</button>
+      <button class="btn-sm" id="saveBadge" onclick="exportBackup()" title="Download a backup of your saved data">⬇ Backup</button>
+      <button class="btn-sm" onclick="document.getElementById('importInput').click()" title="Restore from a backup file">⬆ Restore</button>
+      <button class="btn-sm" onclick="clearSaved()" title="Delete the data saved on this device">🗑 Clear</button>
+      <input type="file" id="importInput" accept=".json" style="display:none">
     </div>
   </div>
   <div class="main-tabs">
@@ -828,6 +837,13 @@ function catTX(merchant){
   return ['Miscellaneous','Other'];
 }
 
+function buildTX(date,merchant,amount){
+  var clean=normM(merchant);
+  var cp=catTX(clean);
+  var loc=detectLoc(merchant)||detectLoc(clean);
+  return {date:date,merchant:clean,rawMerchant:merchant,amount:amount,
+    category:cp[0],subcategory:cp[1],location:loc};
+}
 function parseCSV(file){
   return new Promise(function(resolve){
     Papa.parse(file,{header:false,skipEmptyLines:true,complete:function(results){
@@ -842,11 +858,7 @@ function parseCSV(file){
         if(!pts) return;
         var date=new Date(pts[3]+'-'+pts[1].padStart(2,'0')+'-'+pts[2].padStart(2,'0'));
         if(isNaN(date.getTime())) return;
-        var clean=normM(merchant);
-        var cp=catTX(clean);
-        var loc=detectLoc(merchant)||detectLoc(clean);
-        rows.push({date:date,merchant:clean,rawMerchant:merchant,amount:amount,
-          category:cp[0],subcategory:cp[1],location:loc});
+        rows.push(buildTX(date,merchant,amount));
       });
       resolve(rows);
     }});
@@ -866,14 +878,94 @@ async function runAnalysis(){
   await new Promise(function(r){setTimeout(r,50)});
   try{
     var results=await Promise.all(pendingFiles.map(parseCSV));
-    TX=dedup(results.flat());
+    TX=dedup(SAVED.map(fromSaved).concat(results.flat()));
     TX.sort(function(a,b){return a.date-b.date});
+    persist();
     ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
     build();
     document.getElementById('uploadScreen').style.display='none';
     document.getElementById('dashboard').style.display='block';
   } finally { document.getElementById('loadingOverlay').style.display='none' }
 }
+
+// ─── PERSISTENCE (IndexedDB, stays on this device) ───────────────────────
+// Only raw fields are stored (date, raw merchant text, amount). Categories are
+// recomputed on load, so merchant-database improvements apply to old data too.
+var SAVED=[];
+function idb(){
+  return new Promise(function(res,rej){
+    try{
+      var rq=indexedDB.open('spend-dashboard',1);
+      rq.onupgradeneeded=function(){rq.result.createObjectStore('kv')};
+      rq.onsuccess=function(){res(rq.result)};
+      rq.onerror=function(){rej(rq.error)};
+    }catch(e){rej(e)}
+  });
+}
+function idbGet(k){return idb().then(function(db){return new Promise(function(res,rej){
+  var r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})})}
+function idbSet(k,v){return idb().then(function(db){return new Promise(function(res,rej){
+  var t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=function(){res()};t.onerror=function(){rej(t.error)}})})}
+function idbDel(k){return idb().then(function(db){return new Promise(function(res,rej){
+  var t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=function(){res()};t.onerror=function(){rej(t.error)}})})}
+function toSaved(r){return {d:r.date.toISOString().slice(0,10),m:r.rawMerchant,a:r.amount}}
+function fromSaved(x){return buildTX(new Date(x.d),x.m,x.a)}
+function persist(){
+  SAVED=TX.map(toSaved);
+  return idbSet('tx',SAVED).then(updateSavedUI).catch(function(){});
+}
+function updateSavedUI(){
+  var b=document.getElementById('savedBanner');
+  if(SAVED.length){
+    document.getElementById('savedBannerText').textContent='Saved on this device: '+SAVED.length+' transactions.';
+    b.style.display='block';
+  } else b.style.display='none';
+}
+function openSaved(){
+  TX=dedup(SAVED.map(fromSaved));
+  TX.sort(function(a,b){return a.date-b.date});
+  ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
+  build();
+  document.getElementById('uploadScreen').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+}
+function clearSaved(){
+  if(!confirm('Delete all spending data saved on this device? You can re-upload your CSVs anytime.')) return;
+  SAVED=[];
+  idbDel('tx').catch(function(){}).then(function(){
+    updateSavedUI();
+    if(TX.length) resetToUpload();
+  });
+}
+function exportBackup(){
+  var blob=new Blob([JSON.stringify({app:'spend',v:1,tx:SAVED.length?SAVED:TX.map(toSaved)})],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='spend-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+}
+document.getElementById('importInput').addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var j=JSON.parse(rd.result);
+      if(!j||j.app!=='spend'||!Array.isArray(j.tx)) throw 0;
+      var add=j.tx.filter(function(x){return x&&x.d&&x.m&&isFinite(x.a)});
+      TX=dedup(SAVED.concat(add).map(fromSaved));
+      TX.sort(function(a,b){return a.date-b.date});
+      ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
+      persist();build();
+      document.getElementById('uploadScreen').style.display='none';
+      document.getElementById('dashboard').style.display='block';
+    }catch(err){alert('That file is not a valid spend backup.')}
+    e.target.value='';
+  };
+  rd.readAsText(f);
+});
+// Auto-open saved data on page load
+idbGet('tx').then(function(v){
+  if(Array.isArray(v)&&v.length){SAVED=v;updateSavedUI();openSaved()}
+}).catch(function(){});
 
 // ─── SAMPLE DATA (so first-time visitors see the dashboard immediately) ───
 var SAMPLE_CSV=`01/03/2026,SUKHUMVIT 49 STARBUCKS,4.50,
@@ -993,7 +1085,7 @@ function resetToUpload(){
   document.getElementById('dashboard').style.display='none';
   document.getElementById('uploadScreen').style.display='flex';
   pendingFiles=[];fileList.innerHTML='';analyzeBtn.style.display='none';
-  TX=[];FILTERED=[];
+  TX=[];FILTERED=[];updateSavedUI();
   Object.values(CHARTS).forEach(function(c){try{c.destroy()}catch(e){}});
   CHARTS={};
 }
