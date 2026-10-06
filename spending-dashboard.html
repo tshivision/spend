@@ -265,6 +265,18 @@ canvas{cursor:pointer}
 .cc-big{font-weight:500;text-align:right}
 .cc-sub{font-size:10px;color:var(--ink3);text-align:right}
 @media(max-width:600px){.cc-row{grid-template-columns:1fr 90px}.cc-bar{grid-column:1/-1;order:3}.topbar{padding:0 .75rem}.topbar-actions{gap:5px}.btn-sm{padding:6px 10px}}
+.dr-cat.editable{cursor:pointer}
+.dr-cat.editable:hover{outline:1px solid currentColor}
+.dr-edited{font-size:10px;color:var(--ink3);margin-left:2px}
+#catModal{display:none;position:fixed;inset:0;z-index:800;align-items:center;justify-content:center;padding:1rem;background:rgba(28,26,20,.45)}
+#catModal.show{display:flex}
+.cat-box{background:var(--card);border-radius:16px;padding:1.25rem;max-width:380px;width:100%}
+.cat-title{font-family:var(--font-d);font-size:1.15rem;font-weight:600;margin-bottom:4px}
+.cat-sub{font-size:11px;color:var(--ink3);margin-bottom:12px;line-height:1.5}
+.cat-grid{display:flex;flex-wrap:wrap;gap:6px}
+.cat-chip{font-family:var(--font-m);font-size:11px;padding:7px 12px;border-radius:999px;border:1px solid transparent;cursor:pointer}
+.cat-chip.cur{border-color:currentColor;font-weight:500}
+.cat-reset{margin-top:12px;background:none;border:none;font-family:var(--font-m);font-size:11px;color:var(--accent);cursor:pointer;padding:0}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -414,6 +426,14 @@ canvas{cursor:pointer}
       <button onclick="downloadShare()">⬇ Save image</button>
       <button class="primary" id="shareNativeBtn" onclick="nativeShare()">Share…</button>
     </div>
+  </div>
+</div>
+<div id="catModal" onclick="if(event.target===this)closeCat()">
+  <div class="cat-box">
+    <div class="cat-title" id="catTitle"></div>
+    <div class="cat-sub" id="catSub"></div>
+    <div class="cat-grid" id="catGrid"></div>
+    <button class="cat-reset" id="catReset" onclick="resetCat()" style="display:none">↺ Go back to automatic</button>
   </div>
 </div>
 <div id="drillModal">
@@ -887,9 +907,11 @@ function catTX(merchant){
   return ['Miscellaneous','Other'];
 }
 
+var OVERRIDES={};
 function buildTX(date,merchant,amount){
   var clean=normM(merchant);
   var cp=catTX(clean);
+  if(OVERRIDES[clean]) cp=[OVERRIDES[clean],cp[0]===OVERRIDES[clean]?cp[1]:'Other'];
   var loc=detectLoc(merchant)||detectLoc(clean);
   return {date:date,merchant:clean,rawMerchant:merchant,amount:amount,
     category:cp[0],subcategory:cp[1],location:loc};
@@ -982,13 +1004,15 @@ function openSaved(){
 function clearSaved(){
   if(!confirm('Delete all spending data saved on this device? You can re-upload your CSVs anytime.')) return;
   SAVED=[];
+  OVERRIDES={};
+  idbDel('overrides').catch(function(){});
   idbDel('tx').catch(function(){}).then(function(){
     updateSavedUI();
     if(TX.length) resetToUpload();
   });
 }
 function exportBackup(){
-  var blob=new Blob([JSON.stringify({app:'spend',v:1,tx:SAVED.length?SAVED:TX.map(toSaved)})],{type:'application/json'});
+  var blob=new Blob([JSON.stringify({app:'spend',v:1,tx:SAVED.length?SAVED:TX.map(toSaved),ov:OVERRIDES})],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download='spend-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
@@ -1000,6 +1024,7 @@ document.getElementById('importInput').addEventListener('change',function(e){
     try{
       var j=JSON.parse(rd.result);
       if(!j||j.app!=='spend'||!Array.isArray(j.tx)) throw 0;
+      if(j.ov&&typeof j.ov==='object'){Object.keys(j.ov).forEach(function(k){OVERRIDES[k]=j.ov[k]});idbSet('overrides',OVERRIDES).catch(function(){})}
       var add=j.tx.filter(function(x){return x&&x.d&&x.m&&isFinite(x.a)});
       TX=dedup(SAVED.concat(add).map(fromSaved));
       TX.sort(function(a,b){return a.date-b.date});
@@ -1013,7 +1038,9 @@ document.getElementById('importInput').addEventListener('change',function(e){
   rd.readAsText(f);
 });
 // Auto-open saved data on page load
-idbGet('tx').then(function(v){
+Promise.all([idbGet('overrides'),idbGet('tx')]).then(function(r){
+  if(r[0]&&typeof r[0]==='object') OVERRIDES=r[0];
+  var v=r[1];
   if(Array.isArray(v)&&v.length){SAVED=v;updateSavedUI();openSaved()}
 }).catch(function(){});
 
@@ -1591,7 +1618,39 @@ function nativeShare(){
   });
 }
 
+
+// ─── CATEGORY OVERRIDES (your corrections, saved on this device) ─────────
+function editCat(i){
+  var m=DR_M[i];if(!m) return;EDIT_M=m;
+  var n=TX.filter(function(r){return r.merchant===m}).length;
+  var cur=(TX.find(function(r){return r.merchant===m})||{}).category;
+  document.getElementById('catTitle').textContent='Move “'+m+'” to…';
+  document.getElementById('catSub').textContent='Applies to all '+n+' transaction'+(n>1?'s':'')+' from this merchant, now and in future uploads. Only on this device.';
+  document.getElementById('catGrid').innerHTML=Object.keys(CAT_COLORS).map(function(c){
+    var col=CAT_COLORS[c];
+    return '<button class="cat-chip'+(c===cur?' cur':'')+'" style="background:'+col+'22;color:'+col+'" onclick="setCat(\''+c.replace(/'/g,"\\'")+'\')">'+c+'</button>';
+  }).join('');
+  document.getElementById('catReset').style.display=OVERRIDES[m]?'inline':'none';
+  document.getElementById('catModal').classList.add('show');
+}
+function closeCat(){document.getElementById('catModal').classList.remove('show')}
+function applyOverrides(){
+  TX.forEach(function(r){
+    var o=OVERRIDES[r.merchant];
+    var auto=catTX(r.merchant);
+    r.category=o||auto[0];
+    r.subcategory=o?(auto[0]===o?auto[1]:'Other'):auto[1];
+  });
+  applyFilters();renderLocTab();renderCityCost();
+  idbSet('overrides',OVERRIDES).catch(function(){});
+  closeCat();
+  if(LAST_DRILL) openDrill(LAST_DRILL);
+}
+function setCat(c){if(!EDIT_M) return;OVERRIDES[EDIT_M]=c;applyOverrides()}
+function resetCat(){if(!EDIT_M) return;delete OVERRIDES[EDIT_M];applyOverrides()}
+
 // ─── DRILLDOWN MODAL ──────────────────────────────────────────────────────
+var DR_M=[],LAST_DRILL=null,EDIT_M=null;
 function openDrill(key){
   var modal=document.getElementById('drillModal');
   var rows, title, subtitle;
@@ -1673,7 +1732,7 @@ function openDrill(key){
   var byDate=groupBy(rows,function(r){return r.date.toISOString().slice(0,10)});
   var dateKeys=Object.keys(byDate).sort(function(a,b){return b.localeCompare(a)});
 
-  var bodyHTML='';
+  var bodyHTML='';DR_M=[];LAST_DRILL=key;
   dateKeys.forEach(function(dk){
     var dayRows=byDate[dk];
     var dayTotal=sumAmt(dayRows);
@@ -1681,10 +1740,11 @@ function openDrill(key){
     bodyHTML+='<div class="drill-section-head">'+fmtDate(d)+' &nbsp;·&nbsp; '+dayRows.length+' tx &nbsp;·&nbsp; '+fmt(dayTotal)+'</div>';
     dayRows.forEach(function(r){
       var locBadge=r.location?'<span class="dr-loc">'+locFlag(r.location)+'</span>':'';
+      DR_M.push(r.merchant);
       bodyHTML+='<div class="drill-row">'+
-        '<span class="dr-merch">'+r.merchant+'</span>'+
+        '<span class="dr-merch">'+r.merchant+(OVERRIDES[r.merchant]?'<span class="dr-edited" title="You changed this category"> ✎</span>':'')+'</span>'+
         locBadge+
-        '<span class="dr-cat" style="background:'+(CAT_COLORS[r.category]||'#9C9888')+'22;color:'+(CAT_COLORS[r.category]||'#9C9888')+'">'+r.category+'</span>'+
+        '<span class="dr-cat editable" title="Click to change this merchant\'s category" onclick="editCat('+(DR_M.length-1)+')" style="background:'+(CAT_COLORS[r.category]||'#9C9888')+'22;color:'+(CAT_COLORS[r.category]||'#9C9888')+'">'+r.category+'</span>'+
         '<span class="dr-amt">'+fmt(r.amount,2)+'</span>'+
       '</div>';
     });
@@ -1700,7 +1760,7 @@ function closeDrill(){
 document.getElementById('drillModal').addEventListener('click',function(e){
   if(e.target===this) closeDrill();
 });
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeDrill();closeShare()}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeCat();closeDrill();closeShare()}});
 </script>
 </body>
 </html>
