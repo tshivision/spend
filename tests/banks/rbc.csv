@@ -1,0 +1,4 @@
+Account Type,Account Number,Transaction Date,Cheque Number,Description 1,Description 2,CAD$,USD$
+MasterCard,1234,3/25/2026,,TIM HORTONS #123,,-4.25,
+MasterCard,1234,3/26/2026,,PAYMENT,,200.00,
+MasterCard,1234,3/27/2026,,AMAZON.CA,,-33.10,

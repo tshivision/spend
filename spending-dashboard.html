@@ -277,6 +277,23 @@ canvas{cursor:pointer}
 .cat-chip{font-family:var(--font-m);font-size:11px;padding:7px 12px;border-radius:999px;border:1px solid transparent;cursor:pointer}
 .cat-chip.cur{border-color:currentColor;font-weight:500}
 .cat-reset{margin-top:12px;background:none;border:none;font-family:var(--font-m);font-size:11px;color:var(--accent);cursor:pointer;padding:0}
+#mapModal{display:none;position:fixed;inset:0;z-index:850;align-items:center;justify-content:center;padding:1rem;background:rgba(28,26,20,.55);backdrop-filter:blur(6px)}
+#mapModal.show{display:flex}
+.map-box{background:var(--card);border-radius:16px;padding:1.25rem;max-width:520px;width:100%;max-height:94vh;overflow:auto}
+.map-title{font-family:var(--font-d);font-size:1.25rem;font-weight:600}
+.map-sub{font-size:11px;color:var(--ink3);margin:4px 0 12px;line-height:1.5}
+.map-row{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:8px;font-size:11px}
+.map-row select{font-family:var(--font-m);font-size:11px;padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
+.map-prev{background:var(--bg);border-radius:10px;padding:10px;margin-top:10px;font-size:11px}
+.map-prev-t{color:var(--ink3);margin-bottom:6px}
+.map-prev-r{display:grid;grid-template-columns:90px 1fr 70px;gap:8px;padding:3px 0}
+.map-prev-r span:last-child{text-align:right}
+.map-actions{display:flex;gap:8px;margin-top:12px}
+.map-actions button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);font-family:var(--font-m);font-size:12px;cursor:pointer}
+.map-actions .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#1C1A14;color:#fff;font-size:12px;padding:10px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:all .25s;z-index:900;max-width:92vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+@media(max-width:600px){.map-row{grid-template-columns:1fr}}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -289,7 +306,7 @@ canvas{cursor:pointer}
   <div class="upload-logo">spend<span>.</span></div>
   <div class="upload-tagline">Personal finance dashboard</div>
   <div class="drop-zone" id="dropZone">
-    <input type="file" id="fileInput" accept=".csv" multiple>
+    <input type="file" id="fileInput" accept=".csv,.txt,text/csv" multiple>
     <div class="drop-icon">📊</div>
     <div class="drop-title">Drop your CSV files here</div>
     <div class="drop-sub">or <strong onclick="document.getElementById('fileInput').click()">browse to upload</strong></div>
@@ -428,6 +445,15 @@ canvas{cursor:pointer}
     </div>
   </div>
 </div>
+<div id="mapModal">
+  <div class="map-box">
+    <div class="map-title">Let's match your columns</div>
+    <div class="map-sub">We couldn't read <strong id="mapFile"></strong> automatically. Pick which column is which. This stays on your device, and next time we'll remember it for this bank's format.</div>
+    <div id="mapBody"></div>
+    <div class="map-actions"><button id="mapSkip">Skip this file</button><button class="primary" id="mapUse">Use these settings</button></div>
+  </div>
+</div>
+<div id="toast"></div>
 <div id="catModal" onclick="if(event.target===this)closeCat()">
   <div class="cat-box">
     <div class="cat-title" id="catTitle"></div>
@@ -658,9 +684,9 @@ dropZone.addEventListener('click',function(){fileInput.click()});
 dropZone.addEventListener('dragover',function(e){e.preventDefault();dropZone.classList.add('drag-over')});
 dropZone.addEventListener('dragleave',function(){dropZone.classList.remove('drag-over')});
 dropZone.addEventListener('drop',function(e){e.preventDefault();dropZone.classList.remove('drag-over');handleFiles([...e.dataTransfer.files])});
-fileInput.addEventListener('change',function(e){handleFiles([...e.target.files])});
+fileInput.addEventListener('change',function(e){handleFiles([...e.target.files]);e.target.value=''});
 function handleFiles(files){
-  files.filter(function(f){return f.name.toLowerCase().endsWith('.csv')}).forEach(function(f){
+  files.filter(function(f){return /\.(csv|txt)$/i.test(f.name)}).forEach(function(f){
     if(!pendingFiles.find(function(p){return p.name===f.name})) pendingFiles.push(f);
   });
   fileList.innerHTML=pendingFiles.map(function(f){return'<div class="file-pill"><span class="dot"></span>'+f.name+'</div>'}).join('');
@@ -916,25 +942,276 @@ function buildTX(date,merchant,amount){
   return {date:date,merchant:clean,rawMerchant:merchant,amount:amount,
     category:cp[0],subcategory:cp[1],location:loc};
 }
-function parseCSV(file){
-  return new Promise(function(resolve){
-    Papa.parse(file,{header:false,skipEmptyLines:true,complete:function(results){
-      var rows=[];
-      results.data.forEach(function(row){
-        if(row.length<3) return;
-        var dateStr=row[0],merchant=(row[1]||'').trim();
-        var debit=parseFloat(row[2])||0,credit=parseFloat(row[3])||0;
-        var amount=debit-credit;
-        if(!merchant||!dateStr||amount<=0) return;
-        var pts=dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-        if(!pts) return;
-        var date=new Date(pts[3]+'-'+pts[1].padStart(2,'0')+'-'+pts[2].padStart(2,'0'));
-        if(isNaN(date.getTime())) return;
-        rows.push(buildTX(date,merchant,amount));
-      });
-      resolve(rows);
-    }});
+// ─── SMART CSV READER (works with most banks' exports) ───────────────────
+// 1) find the header row (or infer columns when there is none)
+// 2) map columns by name, then by what the data looks like
+// 3) work out date order, amount sign and split debit/credit columns
+// 4) if all that fails, ask the user to match the columns (and remember it)
+var BANK_MAPS={};
+var HDR_WORDS=/(date|description|details|merchant|payee|amount|debit|credit|withdraw|deposit|memo|narrative|particulars|reference|balance|transaction|type|name|paid|money|charge|cad|usd|aud|gbp|eur|currency|category)/i;
+var MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+
+function readSheet(file){
+  return new Promise(function(res){
+    Papa.parse(file,{header:false,skipEmptyLines:'greedy',complete:function(r){
+      res((r.data||[]).map(function(row){return row.map(function(c){return (c==null?'':String(c)).replace(/^﻿/,'').trim()})}));
+    },error:function(){res([])}});
   });
+}
+function mkDate(y,mo,d){
+  if(mo<1||mo>12||d<1||d>31||y<1990||y>2100) return null;
+  var dt=new Date(Date.UTC(y,mo-1,d));
+  return dt.getUTCMonth()===mo-1?dt:null;
+}
+function parseDateStr(s,order){
+  s=(s||'').trim();if(!s) return null;
+  var m,y,mo;
+  if((m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return mkDate(+m[1],+m[2],+m[3]);
+  if((m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})(?!\d)/))){
+    var a=+m[1],b=+m[2];y=+m[3];if(y<100) y+=2000;
+    return order==='DMY'?mkDate(y,b,a):mkDate(y,a,b);
+  }
+  if((m=s.match(/^(\d{1,2})[\s\-\/]([A-Za-z]{3,9})\.?,?[\s\-\/](\d{2,4})/))){
+    mo=MONTHS[m[2].slice(0,3).toLowerCase()];y=+m[3];if(y<100) y+=2000;
+    return mo?mkDate(y,mo,+m[1]):null;
+  }
+  if((m=s.match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/))){
+    mo=MONTHS[m[1].slice(0,3).toLowerCase()];
+    return mo?mkDate(+m[3],mo,+m[2]):null;
+  }
+  if((m=s.match(/^(\d{4})(\d{2})(\d{2})$/))) return mkDate(+m[1],+m[2],+m[3]);
+  return null;
+}
+function parseAmt(s){
+  if(s==null) return NaN;
+  s=String(s).trim();if(!s||!/\d/.test(s)) return NaN;
+  var neg=/^\(.*\)$/.test(s)||/-\s*$/.test(s)||/^[^\d]*[-−]/.test(s);
+  s=s.replace(/[^\d.,]/g,'');
+  var lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');
+  if(lc>-1&&ld>-1){ if(lc>ld) s=s.replace(/\./g,'').replace(',','.'); else s=s.replace(/,/g,''); }
+  else if(lc>-1){ if(/^\d{1,3}(,\d{3})+$/.test(s)) s=s.replace(/,/g,''); else s=s.replace(',','.'); }
+  else if(ld>-1&&(s.match(/\./g)||[]).length>1) s=s.replace(/\./g,'');
+  var v=parseFloat(s);
+  return isNaN(v)?NaN:(neg?-v:v);
+}
+function guessDateOrder(samples){
+  var dmy=0,mdy=0;
+  samples.forEach(function(s){
+    var m=(s||'').match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})(?!\d)/);
+    if(m){ if(+m[1]>12) dmy++; if(+m[2]>12) mdy++; }
+  });
+  if(dmy&&!mdy) return 'DMY';
+  if(mdy&&!dmy) return 'MDY';
+  var lang=(navigator.language||'en-US'),reg=(lang.split('-')[1]||'').toUpperCase(),base=lang.split('-')[0].toLowerCase();
+  if(reg==='US'||reg==='CA'||reg==='PH') return 'MDY';
+  if(!reg&&base==='en') return 'MDY';
+  return 'DMY';
+}
+function colProfile(data,ci){
+  var n=0,fill=0,dates=0,nums=0,len=0;
+  for(var i=0;i<data.length&&n<200;i++){
+    var v=(data[i]||[])[ci];n++;
+    if(!v) continue;
+    fill++;len+=v.length;
+    if(parseDateStr(v,'MDY')||parseDateStr(v,'DMY')) dates++;
+    else if(!isNaN(parseAmt(v))&&/^[^A-Za-z]*$/.test(v.replace(/(CR|DR)$/i,''))) nums++;
+  }
+  return {fill:n?fill/n:0,dates:fill?dates/fill:0,nums:fill?nums/fill:0,avgLen:fill?len/fill:0,n:fill};
+}
+function analyseSheet(rows){
+  var out={rows:rows,hdr:-1,headers:[],cfg:null,reason:'',ncol:0};
+  if(!rows.length){out.reason='empty';return out}
+  var hi=-1;
+  for(var i=0;i<Math.min(25,rows.length);i++){
+    var r=rows[i];if(r.filter(Boolean).length<2) continue;
+    var hits=r.filter(function(c){return c&&c.length<40&&HDR_WORDS.test(c)&&!parseDateStr(c,'MDY')&&isNaN(parseAmt(c))}).length;
+    if(hits>=2){hi=i;break}
+  }
+  if(hi<0&&!rows[0].some(function(c){return parseDateStr(c,'MDY')||parseDateStr(c,'DMY')})) hi=0;
+  out.hdr=hi;
+  var data=rows.slice(hi+1).filter(function(r){return r.filter(Boolean).length>=2});
+  var headers=hi>=0?rows[hi].map(function(h){return h.toLowerCase().replace(/[^a-z0-9$]+/g,' ').trim()}):[];
+  out.headers=headers;
+  var ncol=0;rows.forEach(function(r){if(r.length>ncol) ncol=r.length});
+  out.ncol=ncol;
+  if(headers.indexOf('symbol')>-1&&headers.some(function(h){return /quantity|unit price|commission/.test(h)})){out.reason='investment';return out}
+  var sig=hi>=0?headers.join('|'):('headerless:'+ncol);
+  if(BANK_MAPS[sig]){out.cfg=Object.assign({},BANK_MAPS[sig]);out.cfg.order=guessDateOrder(data.slice(0,60).map(function(r){return r[out.cfg.date]}));out.cfg.hdr=hi;out.sig=sig;return out}
+  out.sig=sig;
+  var P=[];for(var c=0;c<ncol;c++) P.push(colProfile(data,c));
+  var nm=function(c){return headers[c]||''};
+  // date column
+  var dateCols=[];for(c=0;c<ncol;c++) if(P[c].dates>0.6) dateCols.push(c);
+  var date=-1;
+  if(dateCols.length){
+    var pref=dateCols.filter(function(c){return /trans|purchase|^date$|^date |started/.test(nm(c))});
+    var bad=/post|settle|complet|value|booking|effective/;
+    date=(pref.filter(function(c){return !bad.test(nm(c))})[0]);
+    if(date==null) date=dateCols.filter(function(c){return !bad.test(nm(c))})[0];
+    if(date==null) date=dateCols[0];
+  }
+  // direction + status columns
+  var dir=-1,status=-1;
+  for(c=0;c<ncol;c++){
+    if(c===date) continue;
+    var vals=data.slice(0,150).map(function(r){return (r[c]||'').trim()}).filter(Boolean);
+    if(vals.length<3) continue;
+    if(vals.filter(function(v){return /^(debit|credit|dr|cr|withdrawal|deposit|purchase|payment|sale|refund)$/i.test(v)}).length/vals.length>0.9) dir=c;
+    if(/^(state|status)$/.test(nm(c))&&vals.filter(function(v){return /^[A-Za-z ]+$/.test(v)}).length/vals.length>0.9) status=c;
+  }
+  // numeric columns
+  var numCols=[];for(c=0;c<ncol;c++) if(c!==date&&c!==dir&&P[c].nums>0.6&&!/balance|fee|rate|quantity|price|number|account|cheque|check|^id$| id$|points/.test(nm(c))) numCols.push(c);
+  var debit=-1,credit=-1,amt=-1,mode='';
+  var dn=numCols.filter(function(c){return /debit|withdraw|money out|paid out|charge|spent|outflow|payments? out/.test(nm(c))});
+  var cn=numCols.filter(function(c){return /credit|deposit|money in|paid in|inflow|payments? in/.test(nm(c))});
+  var an=numCols.filter(function(c){return /amount|value|net|total|sum|cad|usd|aud|gbp|eur|nzd|thb|\$/.test(nm(c))});
+  if(dn.length){mode='split';debit=dn[0];credit=cn.length?cn[0]:-1}
+  else if(an.length){mode='amt';amt=an.sort(function(a,b){return P[b].fill-P[a].fill})[0]}
+  else if(numCols.length>=2){
+    var both=0,tot=0;
+    data.slice(0,200).forEach(function(r){tot++;if(r[numCols[0]]&&r[numCols[1]]) both++});
+    if(tot&&both/tot<0.15&&P[numCols[0]].fill<0.95){mode='split';debit=numCols[0];credit=numCols[1]}
+    else{mode='amt';amt=numCols[0]}
+  } else if(numCols.length===1){mode='amt';amt=numCols[0]}
+  // description column
+  var desc=-1,best=-1;
+  for(c=0;c<ncol;c++){
+    if(c===date||c===amt||c===debit||c===credit||c===dir||c===status) continue;
+    if(P[c].nums>0.5||P[c].dates>0.5||P[c].n<2) continue;
+    var sc=P[c].avgLen;
+    if(/description|details|merchant|payee|narrative|particulars|name|transaction$/.test(nm(c))) sc+=50;
+    if(/memo|category|type|currency|account|emoji|note|time|reference|status|state|notes/.test(nm(c))) sc-=40;
+    if(sc>best){best=sc;desc=c}
+  }
+  // spend sign for single amount column
+  var sign='neg';
+  if(mode==='amt'){
+    var pos=0,neg=0;
+    data.slice(0,300).forEach(function(r){var v=parseAmt(r[amt]);if(!isNaN(v)){if(v>0)pos++;else if(v<0)neg++}});
+    sign=(neg>pos)?'neg':'pos';
+  }
+  var order=guessDateOrder(date>=0?data.slice(0,100).map(function(r){return r[date]}):[]);
+  if(date>=0&&desc>=0&&mode&&(mode==='amt'?amt>=0:debit>=0)){
+    out.cfg={date:date,desc:desc,mode:mode,amt:amt,debit:debit,credit:credit,sign:sign,dir:dir,status:status,order:order,hdr:hi};
+  } else {
+    out.guess={date:date,desc:desc,mode:mode||'amt',amt:amt,debit:debit,credit:credit,sign:sign,dir:-1,status:-1,order:order,hdr:hi};
+    out.reason='columns';
+  }
+  return out;
+}
+function extractRows(rows,cfg){
+  var out=[];
+  for(var i=cfg.hdr+1;i<rows.length;i++){
+    var r=rows[i];if(!r||r.length<2) continue;
+    var d=parseDateStr(r[cfg.date],cfg.order);
+    var desc=(r[cfg.desc]||'').trim();
+    if(!d||!desc) continue;
+    if(cfg.status>=0&&/revert|declin|fail|cancel|reject/i.test(r[cfg.status]||'')) continue;
+    var amount;
+    if(cfg.mode==='split'){
+      var db=parseAmt(r[cfg.debit]),cr=cfg.credit>=0?parseAmt(r[cfg.credit]):NaN;
+      amount=(isNaN(db)?0:Math.abs(db))-(isNaN(cr)?0:Math.abs(cr));
+    } else {
+      var v=parseAmt(r[cfg.amt]);if(isNaN(v)) continue;
+      if(cfg.dir>=0){
+        var dv=(r[cfg.dir]||'').trim();
+        if(!/^(debit|dr|withdrawal|purchase|sale)$/i.test(dv)) continue;
+        amount=Math.abs(v);
+      } else amount=cfg.sign==='neg'?-v:v;
+    }
+    if(!(amount>0)) continue;
+    out.push({date:d,desc:desc,amount:amount});
+  }
+  return out;
+}
+var PARSE_NOTES=[];
+function toast(msg,ms){
+  var t=document.getElementById('toast');if(!t) return;
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show')},ms||5000);
+}
+async function parseCSV(file){
+  var rows=await readSheet(file);
+  var sheet=analyseSheet(rows);
+  if(sheet.reason==='investment'){
+    PARSE_NOTES.push(file.name+' looks like an investment activity export (buys, dividends), not card spending, so it was skipped.');
+    return [];
+  }
+  var cfg=sheet.cfg,ex=cfg?extractRows(rows,cfg):[];
+  if(!ex.length){
+    cfg=await openMapper(file.name,sheet);
+    if(!cfg){PARSE_NOTES.push(file.name+': skipped, no spending rows found.');return []}
+    ex=extractRows(rows,cfg);
+    if(ex.length&&sheet.sig){BANK_MAPS[sheet.sig]=cfg;idbSet('maps',BANK_MAPS).catch(function(){})}
+  }
+  if(!ex.length){PARSE_NOTES.push(file.name+': skipped, no spending rows found.');return []}
+  PARSE_NOTES.push(file.name+': read '+ex.length+' purchases'+(cfg.order==='DMY'?' (dates read as day/month)':''));
+  return ex.map(function(r){return buildTX(r.date,r.desc,r.amount)});
+}
+
+// ─── Column matcher (only shown when auto-detect fails) ──────────────────
+function colLabel(sheet,i){
+  var h=sheet.hdr>=0?sheet.rows[sheet.hdr][i]:'';var ex='';
+  for(var k=sheet.hdr+1;k<Math.min(sheet.rows.length,sheet.hdr+40);k++){var v=(sheet.rows[k]||[])[i];if(v){ex=v;break}}
+  return (h||('Column '+(i+1)))+(ex?'   e.g. '+ex.slice(0,24):'');
+}
+function openMapper(name,sheet){
+  return new Promise(function(resolve){
+    if(!sheet.rows.length||!sheet.ncol){resolve(null);return}
+    var cfg=Object.assign({date:0,desc:1,mode:'amt',amt:2,debit:2,credit:-1,sign:'neg',dir:-1,status:-1,order:guessDateOrder([]),hdr:sheet.hdr},sheet.guess||{});
+    cfg.hdr=sheet.hdr;
+    ['date','desc','amt','debit'].forEach(function(k){if(cfg[k]==null||cfg[k]<0) cfg[k]=Math.min(k==='date'?0:k==='desc'?1:2,sheet.ncol-1)});
+    var box=document.getElementById('mapBody');
+    function opts(sel,none){
+      var h=none?'<option value="-1"'+(sel<0?' selected':'')+'>(none)</option>':'';
+      for(var i=0;i<sheet.ncol;i++) h+='<option value="'+i+'"'+(i===sel?' selected':'')+'>'+colLabel(sheet,i).replace(/</g,'&lt;')+'</option>';
+      return h;
+    }
+    function render(){
+      var ex=extractRows(sheet.rows,cfg).slice(0,5);
+      box.innerHTML=
+        '<div class="map-row"><label>Date</label><select data-k="date">'+opts(cfg.date)+'</select></div>'+
+        '<div class="map-row"><label>Merchant / description</label><select data-k="desc">'+opts(cfg.desc)+'</select></div>'+
+        '<div class="map-row"><label>Date order</label><select data-k="order"><option value="MDY"'+(cfg.order==='MDY'?' selected':'')+'>Month first (03/25/2026)</option><option value="DMY"'+(cfg.order==='DMY'?' selected':'')+'>Day first (25/03/2026)</option></select></div>'+
+        '<div class="map-row"><label>Amounts</label><select data-k="mode"><option value="amt"'+(cfg.mode==='amt'?' selected':'')+'>One amount column</option><option value="split"'+(cfg.mode==='split'?' selected':'')+'>Separate money-out and money-in columns</option></select></div>'+
+        (cfg.mode==='amt'?
+          '<div class="map-row"><label>Amount column</label><select data-k="amt">'+opts(cfg.amt)+'</select></div>'+
+          '<div class="map-row"><label>Spending appears as</label><select data-k="sign"><option value="neg"'+(cfg.sign==='neg'?' selected':'')+'>Negative numbers (−12.50)</option><option value="pos"'+(cfg.sign==='pos'?' selected':'')+'>Positive numbers (12.50)</option></select></div>':
+          '<div class="map-row"><label>Money out (spending)</label><select data-k="debit">'+opts(cfg.debit)+'</select></div>'+
+          '<div class="map-row"><label>Money in (payments, refunds)</label><select data-k="credit">'+opts(cfg.credit,true)+'</select></div>')+
+        '<div class="map-prev"><div class="map-prev-t">Preview: what the app will read ('+extractRows(sheet.rows,cfg).length+' purchases found)</div>'+
+          (ex.length?ex.map(function(r){return '<div class="map-prev-r"><span>'+r.date.toISOString().slice(0,10)+'</span><span>'+r.desc.slice(0,28).replace(/</g,'&lt;')+'</span><span>'+r.amount.toFixed(2)+'</span></div>'}).join(''):'<div style="color:var(--accent);padding:3px 0">Nothing readable yet. Try different columns.</div>')+
+        '</div>';
+      box.querySelectorAll('select').forEach(function(s){s.onchange=function(){
+        var k=s.dataset.k,v=s.value;
+        cfg[k]=(k==='order'||k==='mode'||k==='sign')?v:parseInt(v,10);
+        render();
+      }});
+    }
+    document.getElementById('mapFile').textContent=name;
+    document.getElementById('mapUse').onclick=function(){document.getElementById('mapModal').classList.remove('show');resolve(extractRows(sheet.rows,cfg).length?cfg:null)};
+    document.getElementById('mapSkip').onclick=function(){document.getElementById('mapModal').classList.remove('show');resolve(null)};
+    render();
+    document.getElementById('mapModal').classList.add('show');
+  });
+}
+
+// Merge several lists (saved data + each new file). A purchase counts as a duplicate only when the
+// same date/merchant/amount appears at the same occurrence number, so overlapping statements
+// collapse but two identical purchases on one day are both kept.
+function mergeLists(lists){
+  var seen=new Set(),out=[];
+  lists.forEach(function(list){
+    var cnt={};
+    list.forEach(function(r){
+      var k=r.date.toISOString().slice(0,10)+'_'+r.merchant+'_'+r.amount.toFixed(2);
+      cnt[k]=(cnt[k]||0)+1;
+      var kk=k+'#'+cnt[k];
+      if(seen.has(kk)) return;
+      seen.add(kk);out.push(r);
+    });
+  });
+  return out;
 }
 function dedup(rows){
   var seen=new Set();
@@ -949,14 +1226,23 @@ async function runAnalysis(){
   document.getElementById('loadingOverlay').style.display='flex';
   await new Promise(function(r){setTimeout(r,50)});
   try{
-    var results=await Promise.all(pendingFiles.map(parseCSV));
-    TX=dedup(SAVED.map(fromSaved).concat(results.flat()));
+    PARSE_NOTES=[];
+    var results=[];
+    for(var fi=0;fi<pendingFiles.length;fi++) results.push(await parseCSV(pendingFiles[fi]));
+    var fresh=results.flat();
+    if(!fresh.length&&!SAVED.length){
+      document.getElementById('loadingOverlay').style.display='none';
+      toast(PARSE_NOTES.join(' · ')||'No spending rows found in that file.',9000);
+      return;
+    }
+    TX=mergeLists([SAVED.map(fromSaved)].concat(results));
     TX.sort(function(a,b){return a.date-b.date});
     persist();
     ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
     build();
     document.getElementById('uploadScreen').style.display='none';
     document.getElementById('dashboard').style.display='block';
+    toast(PARSE_NOTES.join(' · '),7000);
   } finally { document.getElementById('loadingOverlay').style.display='none' }
 }
 
@@ -994,7 +1280,7 @@ function updateSavedUI(){
   } else b.style.display='none';
 }
 function openSaved(){
-  TX=dedup(SAVED.map(fromSaved));
+  TX=SAVED.map(fromSaved);
   TX.sort(function(a,b){return a.date-b.date});
   ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
   build();
@@ -1026,7 +1312,7 @@ document.getElementById('importInput').addEventListener('change',function(e){
       if(!j||j.app!=='spend'||!Array.isArray(j.tx)) throw 0;
       if(j.ov&&typeof j.ov==='object'){Object.keys(j.ov).forEach(function(k){OVERRIDES[k]=j.ov[k]});idbSet('overrides',OVERRIDES).catch(function(){})}
       var add=j.tx.filter(function(x){return x&&x.d&&x.m&&isFinite(x.a)});
-      TX=dedup(SAVED.concat(add).map(fromSaved));
+      TX=mergeLists([SAVED.map(fromSaved),add.map(fromSaved)]);
       TX.sort(function(a,b){return a.date-b.date});
       ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
       persist();build();
@@ -1038,8 +1324,9 @@ document.getElementById('importInput').addEventListener('change',function(e){
   rd.readAsText(f);
 });
 // Auto-open saved data on page load
-Promise.all([idbGet('overrides'),idbGet('tx')]).then(function(r){
+Promise.all([idbGet('overrides'),idbGet('tx'),idbGet('maps')]).then(function(r){
   if(r[0]&&typeof r[0]==='object') OVERRIDES=r[0];
+  if(r[2]&&typeof r[2]==='object') BANK_MAPS=r[2];
   var v=r[1];
   if(Array.isArray(v)&&v.length){SAVED=v;updateSavedUI();openSaved()}
 }).catch(function(){});
@@ -1138,7 +1425,7 @@ async function loadSampleData(){
     var blob=new Blob([SAMPLE_CSV],{type:'text/csv'});
     var fakeFile=new File([blob],'sample-data.csv',{type:'text/csv'});
     var rows=await parseCSV(fakeFile);
-    TX=dedup(rows);
+    TX=rows.slice();
     TX.sort(function(a,b){return a.date-b.date});
     ACTIVE_MONTHS=new Set(TX.map(function(r){return mk(r.date)}));
     build();

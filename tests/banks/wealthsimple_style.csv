@@ -1,0 +1,6 @@
+"transaction_date","post_date","type","details","amount","currency"
+"2026-08-15","2026-08-15","Purchase","COFFEE SHOP DOWNTOWN","4.50","CAD"
+"2026-08-15","2026-08-16","Purchase","COFFEE SHOP DOWNTOWN","4.50","CAD"
+"2026-08-16","2026-08-16","Purchase","WWW.GRAB.COM","12.40","CAD"
+"2026-08-18","2026-08-19","Purchase reversed","SOME STORE","-9.32","CAD"
+"2026-09-07","2026-09-07","Payment","From chequing account","-500.00","CAD"

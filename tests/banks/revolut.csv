@@ -1,0 +1,4 @@
+Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+CARD_PAYMENT,Current,2026-03-25 10:21:33,2026-03-26 08:00:00,Starbucks,-4.80,0.00,EUR,COMPLETED,100.00
+CARD_PAYMENT,Current,2026-03-26 11:00:00,,Zara,-39.90,0.00,EUR,REVERTED,100.00
+TOPUP,Current,2026-03-26 12:00:00,2026-03-26 12:00:00,Top-up,200.00,0.00,EUR,COMPLETED,300.00

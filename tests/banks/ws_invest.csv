@@ -1,0 +1,2 @@
+transaction_date,settlement_date,account_id,account_type,activity_type,activity_sub_type,direction,symbol,name,currency,quantity,unit_price,commission,net_cash_amount
+2026-03-25,2026-03-27,abc,TFSA,Trade,BUY,LONG,VFV,Vanguard,CAD,2,100.00,0.00,-200.00

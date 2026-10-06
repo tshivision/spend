@@ -13,7 +13,8 @@ Live: Vercel (`spend-dashboard-gilt.vercel.app`, auto-deploys from `main`). Also
 ## Data pipeline (keep this order)
 `parseCSV` → `normM()` (clean merchant name) → `catTX()` (calls `dbLookup()` on `MERCHANT_DB` first, then keyword rules) → `detectLoc()` (`LOC_RULES`, then `CITY_DATA`) → `dedup()` → `build()` renders.
 Row shape: `{date, merchant, rawMerchant, amount, category, subcategory, location}`.
-CSV format assumed: `MM/DD/YYYY, merchant, debit, credit`. Only positive net amounts (spend) are kept.
+CSV reading is format-agnostic (`readSheet` → `analyseSheet` → `extractRows`, in the "SMART CSV READER" block): finds the header row (or infers columns when there is none), maps date / description / amount columns by name then by what the data looks like, auto-detects date order (day-first vs month-first, falls back to browser locale), amount sign (negative or positive = spending), split debit/credit columns, Debit/Credit "type" columns, European number formats, semicolon/tab delimiters and preamble lines. Investment exports (symbol/quantity columns) are skipped with a message. If auto-detect fails, `openMapper` lets the user match columns and the choice is remembered per header signature (`BANK_MAPS`, IndexedDB key `maps`). Only spending is kept: payments, refunds and income are ignored.
+Duplicates: `mergeLists` drops a row only if the same date+merchant+amount appears at the same occurrence number in an overlapping file, so two identical same-day purchases are both kept.
 
 ## Merchant database rules
 - `MERCHANT_DB` is compact: `{'Category|Sub': 'KEY~KEY~…'}`, decoded at load into `{KEY:[cat,sub]}`.
@@ -33,6 +34,7 @@ CSV format assumed: `MM/DD/YYYY, merchant, debit, credit`. Only positive net amo
 `drawShare()` paints a 1080×1350 canvas. Amounts and merchant names are hidden by default (checkbox to show). No external libraries.
 
 ## Testing (no framework; use Playwright)
+`node tests/banks.test.js` (from a folder with `playwright chart.js papaparse` installed) checks that each sample bank format in `tests/banks/` yields the expected number of purchases. Add a sample there whenever a user reports a bank that doesn't load. **Samples must be synthetic. This repo is public, so never commit real statements.**
 Run headless Chromium (`/opt/pw-browsers/chromium`). In the sandbox, CDNs are blocked: route `**/Chart.js/**` and `**/PapaParse/**` to local npm copies (`npm i chart.js papaparse` in a scratch dir, not the repo).
 Before pushing a merchant change, check at least: categorization of a few known merchants, plus false-positive probes (BANANA, DAVIS PARK, BANKER, CONSULTANT). Before pushing a UI change: upload a CSV → dashboard renders → reload → data still there → share card draws → no `pageerror`.
 
