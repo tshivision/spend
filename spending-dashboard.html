@@ -237,6 +237,34 @@ canvas{cursor:pointer}
   #drillModal{align-items:flex-end;padding:0}
   .loc-month-row{grid-template-columns:80px 1fr}
 }
+
+.btn-share{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-share:hover{background:#a8370f}
+.data-menu-wrap{position:relative}
+.data-menu{display:none;position:absolute;right:0;top:36px;width:270px;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 30px rgba(28,26,20,.14);padding:8px;z-index:300}
+.data-menu.show{display:block}
+.data-menu-note{font-size:10px;color:var(--ink3);padding:6px 8px 8px}
+.data-menu button{display:block;width:100%;text-align:left;background:none;border:none;font-family:var(--font-m);font-size:11px;padding:9px 8px;border-radius:8px;cursor:pointer;color:var(--ink)}
+.data-menu button:hover{background:var(--bg2)}
+#shareModal{display:none;position:fixed;inset:0;z-index:700;align-items:center;justify-content:center;padding:1rem;background:rgba(28,26,20,.6);backdrop-filter:blur(6px)}
+#shareModal.show{display:flex}
+.share-box{background:var(--card);border-radius:16px;padding:1.25rem;max-width:460px;width:100%;max-height:96vh;overflow:auto;position:relative}
+.share-box canvas{width:100%;height:auto;border-radius:10px;border:1px solid var(--border);display:block}
+.share-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 4px;font-size:12px}
+.share-row label{display:flex;align-items:center;gap:8px;cursor:pointer}
+.share-actions{display:flex;gap:8px;margin-top:10px}
+.share-actions button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);font-family:var(--font-m);font-size:12px;cursor:pointer}
+.share-actions .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.share-close{position:absolute;top:8px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink3)}
+.share-hint{font-size:10px;color:var(--ink3);margin-top:8px;line-height:1.5}
+.city-cost{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:24px}
+.cc-row{display:grid;grid-template-columns:150px 1fr 120px;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--bg2);font-size:12px;cursor:pointer}
+.cc-row:first-of-type{border-top:none}
+.cc-bar{height:8px;background:var(--bg2);border-radius:99px;overflow:hidden}
+.cc-bar>div{height:100%;border-radius:99px}
+.cc-big{font-weight:500;text-align:right}
+.cc-sub{font-size:10px;color:var(--ink3);text-align:right}
+@media(max-width:600px){.cc-row{grid-template-columns:1fr 90px}.cc-bar{grid-column:1/-1;order:3}.topbar{padding:0 .75rem}.topbar-actions{gap:5px}.btn-sm{padding:6px 10px}}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -282,10 +310,17 @@ canvas{cursor:pointer}
     <div class="topbar-logo">spend<span>.</span></div>
     <div class="topbar-actions">
       <button class="btn-sm" onclick="openRemix()">✦ Remix in Claude</button>
+      <button class="btn-sm btn-share" onclick="openShare()">📤 Share</button>
       <button class="btn-sm" onclick="resetToUpload()">+ Add CSVs</button>
-      <button class="btn-sm" id="saveBadge" onclick="exportBackup()" title="Download a backup of your saved data">⬇ Backup</button>
-      <button class="btn-sm" onclick="document.getElementById('importInput').click()" title="Restore from a backup file">⬆ Restore</button>
-      <button class="btn-sm" onclick="clearSaved()" title="Delete the data saved on this device">🗑 Clear</button>
+      <div class="data-menu-wrap">
+        <button class="btn-sm" onclick="toggleDataMenu(event)">Your data ▾</button>
+        <div class="data-menu" id="dataMenu">
+          <div class="data-menu-note">Saved only in this browser. Nothing is uploaded.</div>
+          <button onclick="exportBackup()">Download a copy (to move to another device)</button>
+          <button onclick="document.getElementById('importInput').click()">Load a copy I downloaded</button>
+          <button onclick="clearSaved()" style="color:var(--accent)">Delete my saved data</button>
+        </div>
+      </div>
       <input type="file" id="importInput" accept=".json" style="display:none">
     </div>
   </div>
@@ -329,6 +364,7 @@ canvas{cursor:pointer}
   <!-- LOCATIONS TAB -->
   <div id="tab-locations" class="tab-panel">
     <div class="dash-body">
+      <div class="city-cost" id="cityCost"></div>
       <div class="panel-title" style="margin-bottom:16px">Total spend by location — click any city to see transactions</div>
       <div class="loc-summary-grid" id="locSummaryGrid"></div>
       <div class="panel-title" style="margin-bottom:16px">Month-by-month travel map</div>
@@ -366,6 +402,20 @@ canvas{cursor:pointer}
 </div>
 
 <!-- DRILLDOWN MODAL -->
+<div id="shareModal" onclick="if(event.target===this)closeShare()">
+  <div class="share-box">
+    <button class="share-close" onclick="closeShare()">×</button>
+    <canvas id="shareCanvas" width="1080" height="1350"></canvas>
+    <div class="share-row">
+      <label><input type="checkbox" id="shareDetails" onchange="drawShare()"> Show amounts &amp; merchant names</label>
+    </div>
+    <div class="share-hint">Off by default so you can share the story without the numbers. Uses whichever months are selected on the Overview tab.</div>
+    <div class="share-actions">
+      <button onclick="downloadShare()">⬇ Save image</button>
+      <button class="primary" id="shareNativeBtn" onclick="nativeShare()">Share…</button>
+    </div>
+  </div>
+</div>
 <div id="drillModal">
   <div class="drill-sheet">
     <div class="drill-header">
@@ -1131,7 +1181,7 @@ function buildFilters(){
   });
 }
 
-function build(){buildFilters();applyFilters();renderLocTab()}
+function build(){buildFilters();applyFilters();renderLocTab();renderCityCost()}
 function applyFilters(){
   FILTERED=TX.filter(function(r){return ACTIVE_MONTHS.has(mk(r.date))});
   renderKPIs();renderTrend();renderPie();renderStack();renderDOW();renderMerchants();renderSubs();renderInsights();renderRecs();
@@ -1401,6 +1451,146 @@ function renderLocTab(){
   document.getElementById('locationTimeline').innerHTML=html;
 }
 
+
+// ─── COST OF LIVING BY CITY ─────────────────────────────────────────────
+// A "stay" = a run of card activity in one place with gaps of 5 days or less.
+// Days = first-to-last activity date of each stay. Online/untagged spend is excluded.
+function renderCityCost(){
+  var el=document.getElementById('cityCost');
+  var byLoc=groupBy(TX.filter(function(r){return r.location}),function(r){return r.location});
+  var rows=[];
+  Object.keys(byLoc).forEach(function(loc){
+    var tx=byLoc[loc];
+    var days=[...new Set(tx.map(function(r){return Math.floor(r.date.getTime()/86400000)}))].sort(function(a,b){return a-b});
+    var span=0,start=days[0],prev=days[0];
+    for(var i=1;i<=days.length;i++){
+      if(i===days.length||days[i]-prev>5){span+=prev-start+1;start=days[i]}
+      prev=days[i];
+    }
+    var total=sumAmt(tx);
+    var cats={};tx.forEach(function(r){cats[r.category]=(cats[r.category]||0)+r.amount});
+    var top=Object.entries(cats).sort(function(a,b){return b[1]-a[1]})[0];
+    rows.push({loc:loc,total:total,days:span,perDay:total/span,month:total/span*30,top:top?top[0]:''});
+  });
+  rows=rows.filter(function(r){return r.days>=3}).sort(function(a,b){return b.month-a.month});
+  if(!rows.length){el.style.display='none';return}
+  el.style.display='block';
+  var max=rows[0].month;
+  el.innerHTML='<div class="panel-title" style="margin-bottom:6px">What a month costs you, by city</div>'+
+    '<div style="font-size:10px;color:var(--ink3);margin-bottom:10px">Estimated from your card activity in each place (online and untagged spend excluded). Stays under 14 days are faded because a monthly figure from a short trip is a rough guess.</div>'+
+    rows.map(function(r){
+      return '<div class="cc-row" onclick="openDrill(\'loc:'+r.loc+'\')">'+
+        '<div>'+locFlag(r.loc)+' '+r.loc+'<div class="cc-sub" style="text-align:left">'+r.days+' days · mostly '+r.top+(r.days<14?' · <em>short stay, rough</em>':'')+'</div></div>'+
+        '<div class="cc-bar"><div style="width:'+(r.month/max*100)+'%;background:'+locColor(r.loc)+';opacity:'+(r.days<14?.45:1)+'"></div></div>'+
+        '<div><div class="cc-big">'+fmt(r.month)+'<span style="font-weight:400;color:var(--ink3)"> /mo</span></div><div class="cc-sub">'+fmt(r.perDay)+' / day</div></div>'+
+      '</div>';
+    }).join('');
+}
+
+// ─── SHARE CARD (drawn on a canvas, nothing leaves the device) ──────────
+function toggleDataMenu(e){e.stopPropagation();document.getElementById('dataMenu').classList.toggle('show')}
+document.addEventListener('click',function(){var m=document.getElementById('dataMenu');if(m)m.classList.remove('show')});
+function openShare(){
+  document.getElementById('shareModal').classList.add('show');
+  var go=function(){drawShare()};
+  if(document.fonts&&document.fonts.load){
+    Promise.all([document.fonts.load('600 64px Fraunces'),document.fonts.load('400 28px "DM Mono"')]).then(go,go);
+  } else go();
+  document.getElementById('shareNativeBtn').style.display=(navigator.canShare&&navigator.share)?'':'none';
+}
+function closeShare(){document.getElementById('shareModal').classList.remove('show')}
+function shareStats(){
+  var tx=FILTERED;if(!tx.length) return null;
+  var total=sumAmt(tx);
+  var cats=Object.entries(groupBy(tx,function(r){return r.category})).map(function(e){return [e[0],sumAmt(e[1])]}).sort(function(a,b){return b[1]-a[1]});
+  var months=Object.entries(groupBy(tx,function(r){return mk(r.date)})).map(function(e){return [e[0],sumAmt(e[1])]}).sort(function(a,b){return a[0]<b[0]?-1:1});
+  var busiest=months.slice().sort(function(a,b){return b[1]-a[1]})[0];
+  var merchs=Object.entries(groupBy(tx,function(r){return r.merchant})).map(function(e){return [e[0],e[1].length,sumAmt(e[1])]}).sort(function(a,b){return b[1]-a[1]||b[2]-a[2]});
+  var locs=Object.entries(groupBy(tx.filter(function(r){return r.location}),function(r){return r.location})).map(function(e){return [e[0],sumAmt(e[1])]}).sort(function(a,b){return b[1]-a[1]});
+  return {total:total,cats:cats,months:months,busiest:busiest,merchs:merchs,topLoc:locs[0],n:tx.length,
+    first:months[0][0],last:months[months.length-1][0]};
+}
+function wrapText(c,text,x,y,maxW,lh){
+  var words=text.split(' '),line='',yy=y;
+  words.forEach(function(w){
+    var t=line?line+' '+w:w;
+    if(c.measureText(t).width>maxW&&line){c.fillText(line,x,yy);line=w;yy+=lh}else line=t;
+  });
+  c.fillText(line,x,yy);return yy;
+}
+function drawShare(){
+  var cv=document.getElementById('shareCanvas'),c=cv.getContext('2d'),W=1080,H=1350;
+  var st=shareStats(),det=document.getElementById('shareDetails').checked;
+  var SERIF='Fraunces, Georgia, serif',MONO='"DM Mono", ui-monospace, Menlo, monospace';
+  c.fillStyle='#F5F2EB';c.fillRect(0,0,W,H);
+  c.fillStyle='#C4421A';c.fillRect(0,0,W,14);
+  c.textBaseline='alphabetic';
+  if(!st){c.fillStyle='#1C1A14';c.font='600 48px '+SERIF;c.fillText('No data to share yet',80,200);return}
+  var pad=84;
+  // header
+  c.fillStyle='#1C1A14';c.font='600 54px '+SERIF;c.fillText('spend',pad,120);
+  var lw=c.measureText('spend').width;c.fillStyle='#C4421A';c.font='italic 600 54px '+SERIF;c.fillText('.',pad+lw,120);
+  c.textAlign='right';c.fillStyle='#5C5849';c.font='400 26px '+MONO;
+  var per=st.first===st.last?fmM(st.first):fmM(st.first)+' – '+fmM(st.last);
+  c.fillText(per,W-pad,116);c.textAlign='left';
+  // headline
+  var top=st.cats[0],pct=Math.round(top[1]/st.total*100);
+  c.fillStyle='#1C1A14';c.font='600 92px '+SERIF;
+  var y=wrapText(c,pct+'% of my spending went to '+top[0],pad,250,W-pad*2,106);
+  // total line
+  c.fillStyle='#5C5849';c.font='400 30px '+MONO;
+  var sub=st.n+' transactions across '+st.months.length+' month'+(st.months.length>1?'s':'');
+  if(det) sub=fmt(st.total)+' · '+sub;
+  c.fillText(sub,pad,y+70);
+  // bars
+  var by=y+150,maxv=st.cats[0][1],bw=W-pad*2;
+  st.cats.slice(0,5).forEach(function(e,i){
+    var yy=by+i*92,col=CAT_COLORS[e[0]]||'#9C9888';
+    c.fillStyle='#1C1A14';c.font='500 28px '+MONO;c.fillText(e[0],pad,yy);
+    c.textAlign='right';c.fillStyle='#5C5849';
+    c.fillText(det?fmt(e[1])+' · '+Math.round(e[1]/st.total*100)+'%':Math.round(e[1]/st.total*100)+'%',W-pad,yy);c.textAlign='left';
+    c.fillStyle='#E4E0D5';c.beginPath();c.roundRect?c.roundRect(pad,yy+14,bw,18,9):c.rect(pad,yy+14,bw,18);c.fill();
+    c.fillStyle=col;c.beginPath();var w=Math.max(18,bw*e[1]/maxv);c.roundRect?c.roundRect(pad,yy+14,w,18,9):c.rect(pad,yy+14,w,18);c.fill();
+  });
+  // stat tiles
+  var ty=by+5*92+30,tiles=[];
+  if(det&&st.merchs[0]) tiles.push(['Most visited',st.merchs[0][0],st.merchs[0][1]+' visits']);
+  tiles.push(['Busiest month',fmM(st.busiest[0]),det?fmt(st.busiest[1]):'']);
+  if(st.topLoc) tiles.push(['Top place',st.topLoc[0],det?fmt(st.topLoc[1]):'']);
+  tiles=tiles.slice(0,3);
+  var th=tiles.some(function(t){return t[2]})?170:130;
+  var tw=(W-pad*2-(tiles.length-1)*24)/tiles.length;
+  tiles.forEach(function(t,i){
+    var x=pad+i*(tw+24);
+    c.fillStyle='#FDFCF8';c.beginPath();c.roundRect?c.roundRect(x,ty,tw,th,18):c.rect(x,ty,tw,th);c.fill();
+    c.strokeStyle='#E4E0D5';c.lineWidth=2;c.stroke();
+    c.fillStyle='#9C9888';c.font='400 21px '+MONO;c.fillText(t[0].toUpperCase(),x+24,ty+42);
+    c.fillStyle='#1C1A14';c.font='600 34px '+SERIF;
+    var nm=t[1];while(c.measureText(nm).width>tw-48&&nm.length>3) nm=nm.slice(0,-2);
+    if(nm!==t[1]) nm=nm.trim()+'…';
+    c.fillText(nm,x+24,ty+95);
+    c.fillStyle='#5C5849';c.font='400 22px '+MONO;c.fillText(t[2],x+24,ty+137);
+  });
+  // footer
+  c.fillStyle='#9C9888';c.font='400 24px '+MONO;
+  var host=/^https?:/.test(location.protocol)?location.host:'spend-dashboard-gilt.vercel.app';
+  c.fillText('See where yours goes → '+host,pad,H-70);
+}
+function shareBlob(){return new Promise(function(res){document.getElementById('shareCanvas').toBlob(res,'image/png')})}
+function downloadShare(){
+  shareBlob().then(function(b){
+    var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='my-spending.png';a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+  });
+}
+function nativeShare(){
+  shareBlob().then(function(b){
+    var f=new File([b],'my-spending.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})) navigator.share({files:[f],title:'My spending'}).catch(function(){});
+    else downloadShare();
+  });
+}
+
 // ─── DRILLDOWN MODAL ──────────────────────────────────────────────────────
 function openDrill(key){
   var modal=document.getElementById('drillModal');
@@ -1510,7 +1700,7 @@ function closeDrill(){
 document.getElementById('drillModal').addEventListener('click',function(e){
   if(e.target===this) closeDrill();
 });
-document.addEventListener('keydown',function(e){if(e.key==='Escape') closeDrill()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeDrill();closeShare()}});
 </script>
 </body>
 </html>
